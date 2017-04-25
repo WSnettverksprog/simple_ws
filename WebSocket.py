@@ -59,6 +59,7 @@ class Client():
         updateHeader = RequestParser.create_update_header(code)
         print(str.encode(updateHeader))
         self.conn.sendall(str.encode(updateHeader))
+        self.status = Client.OPEN
 
 
 
@@ -105,8 +106,6 @@ class WebSocket():
         client = Client(conn, addr)
         self.clients.append(client)
         print("New connection from: " + addr[0] + ":" + str(addr[1]))
-        if self.on_open is not None:
-            self.on_open(self.clients)
         self.__listenForMsg(client)
 
     #def __handleUpgrade(self):
@@ -116,5 +115,16 @@ class WebSocket():
 host = ''
 port = 8080
 
-ws = WebSocket(host,port)
+def on_open(clients):
+    pass
+
+def on_message(msg, clients):
+    pass
+
+def on_error(err, clients):
+    pass
+
+def on_close(clients):
+    pass
+ws = WebSocket(host,port, on_open=on_open, on_message=on_message, on_error=on_error, on_close=on_close)
 
