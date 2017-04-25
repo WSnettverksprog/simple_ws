@@ -5,16 +5,19 @@
         var ws = new WebSocket("ws://localhost:8080")
         console.log(ws)
         ws.onerror = function (error) {
-            document.body.innerHTML += "Error occured:+n"+error
+            document.body.innerHTML = "Error occured:"
+            console.log(error)
         }
         ws.onopen = function () {
-            document.body.innerHTML += "Connection open!"
+            document.body.innerHTML = "Connection open!"
         }
         ws.onmessage = function (message) {
-            document.body.innerHTML += "Message recieved:\n"+message
+            document.body.innerHTML = "Message recieved:\n"+ message.data
+            console.log(message)
         }
         ws.onclose = function (message) {
-            document.body.innerHTML += "Connection closed:\n"+message
+            document.body.innerHTML = "Connection closed:\n"+message
+            console.log(message)
         }
     </script>
   </head>
