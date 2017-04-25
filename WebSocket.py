@@ -34,6 +34,7 @@ class WebSocket:
             await asyncio.sleep(1)
             for client in self.clients:
                 client.sendBytes(str.encode("Ping"))
+                client.close()
 
     def send_to_all(self, data):
         loop.create_task(self.__async_send_to_all(data))
@@ -61,6 +62,7 @@ class Client:
         self.server = server
         self.reader = reader
         self.writer = writer
+        self.open = True
 
         # Test of sending
         self.sendString("Hei!")
@@ -75,14 +77,18 @@ class Client:
         self.sendBytes(str.encode(data))
 
     def isOpen(self):
-        return True  # TODO
+        return self.open
 
     def close(self):
+        if not self.open:
+            return
+
+        self.open = False
         self.writer.close()
         self.server.disconnect(self)
 
     async def __wait_for_data(self):
-        while self.isOpen():
+        while self.open:
             data = await self.reader.readline()
             if len(data) == 0:
                 self.close()
@@ -92,8 +98,8 @@ class Client:
             if self.server.on_message:
                 self.server.on_message(self.server.clients, data.decode('utf-8'))
 
-            # Test code
-            # self.server.send_to_all(data)
+                # Test code
+                # self.server.send_to_all(data)
 
 
 host = '0.0.0.0'
