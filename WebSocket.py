@@ -26,17 +26,17 @@ class RequestParser():
                 self.headers[line] = None
 
     @staticmethod
-    def create_update_header(code):
+    def create_update_header(key):
         const = RequestParser.ws_const
         m = hashlib.sha1()
-        m.update(str.encode(code))
+        m.update(str.encode(key))
         m.update(str.encode(const))
         hashed = m.digest()
-        code = base64.b64encode(hashed)
+        key = base64.b64encode(hashed)
         header = "HTTP/1.1 101 Switching Protocols\r\n"
         header += "Upgrade: websocket\r\n"
         header += "Connection: Upgrade\r\n"
-        header += "Sec-WebSocket-Accept: " + code.decode("utf-8") + "\r\n\r\n"
+        header += "Sec-WebSocket-Accept: " + key.decode("utf-8") + "\r\n\r\n"
         return header
 
 
@@ -84,6 +84,22 @@ class Client:
     OPEN = 1
     CLOSED = 2
 
+    """
+        Ole trenger:
+
+            def __init__(self, id, socket):
+                self.id = id
+                self.socket = socket
+                self.headers = []
+                self.handshake = False
+                self.handling_partial_packet = False
+                self.partial_buffer = ""
+                self.sending_continuous = False
+                self.partial_message = ""
+                self.has_sent_close = False
+
+
+    """
     def __init__(self, server: WebSocket, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, buffer_size: int):
         self.server = server
         self.reader = reader
@@ -96,6 +112,53 @@ class Client:
 
     def send_bytes(self, data):
         self.writer.write(data)
+
+    def __frame(self, message, user, message_type='text', message_continues=False):
+
+        #Setting opcode
+        b1 = {
+            'continuous': 0,
+            'text': 0 if user.sending_continuous else 1,
+            'binary': 0 if user.sending_continuous else 2,
+            'close': 8,
+            'ping': 9,
+            'pong': 10,
+        }[message_type]
+
+        if message_continues:
+            user.sending_continuous = True
+        else:
+            b1 += 128
+            user.sending_continuous = False
+
+        length = len(message)
+        length_field = ''
+        if length < 126:
+            b2 = length
+        elif length < 65536:
+            b2 = 126
+            hex_length = hex(length)
+            if len(hex_length)%2 == 1:
+                hex_length = '0' + hex_length
+            n = len(hex_length) - 2
+
+            for i in range(n, 0, -2):
+                length_field = chr(int(hex_length[i:2],16)) + length_field
+            while len(length_field) < 2:
+                length_field = chr(0) + length_field
+        else:
+            b2 = 127
+            hex_length = hex(length)
+            if len(hex_length) % 2 == 1:
+                hex_length = '0' + hex_length
+            n = len(hex_length) - 2
+
+            for i in range(n, 0, -2):
+                length_field = chr(int(hex_length[i:2],16)) + length_field
+            while len(length_field) < 8:
+                length_field = chr(0) + length_field
+
+        return chr(b1) + chr(b2) + length_field + message
 
     def send_string(self, data):
         self.send_bytes(str.encode(data))
