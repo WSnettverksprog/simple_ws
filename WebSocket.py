@@ -126,5 +126,23 @@ def on_error(err, clients):
 
 def on_close(clients):
     pass
-ws = WebSocket(host,port, on_open=on_open, on_message=on_message, on_error=on_error, on_close=on_close)
 
+ws = WebSocket(host,port, on_open=on_open, on_message=on_message, on_error=on_error, on_close=on_close)
+"""
+Interface example:
+
+class WS(WebSocket):
+    def on_open(self, client):
+        print("Client connected:"+client)
+
+    def on_message(self, message, client):
+        for c in self.clients:
+            if c.status is WebSocket.OPEN and c is not client:
+                c.send("Message recieved: "+message+"\nFrom client"+client)
+
+    def on_close(self, client):
+        self.send(WebSocket.OTHER, "We lost a client: "+client)
+
+ws = WS(host, port)
+
+"""
