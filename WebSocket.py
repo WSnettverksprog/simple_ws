@@ -20,7 +20,7 @@ class Client():
     def isOpen(self):
         return True
 
-#All users connected to server, should have an object of this type
+#Vet ikke hvordan brukere er implementert, men i implementasjonen under, har jeg lagt til en del av det jeg trenger
 class WebSocketUser():
     def __init__(self, id, socket):
         self.id = id
