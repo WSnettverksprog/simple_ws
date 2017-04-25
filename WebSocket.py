@@ -1,7 +1,8 @@
 import asyncio
 import hashlib
 import base64
-
+import time
+import struct
 loop = asyncio.get_event_loop()
 
 
@@ -71,7 +72,8 @@ class WebSocket:
         client = Client(server=self, reader=reader, writer=writer, buffer_size=self.buffer_size)
         self.clients.append(client)
         if self.on_open is not None:
-            self.on_open(self.clients)
+            self.on_open(self)
+
 
     def disconnect(self, client):
         self.clients.remove(client)
@@ -106,30 +108,32 @@ class Client:
         self.writer = writer
         self.buffer_size = buffer_size
         self.status = Client.CONNECTING
+        self.sending_continuous = False
 
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
 
     def send_bytes(self, data):
+        print(data)
         self.writer.write(data)
 
-    def __frame(self, message, user, message_type='text', message_continues=False):
+    def __frame(self, message, message_type='text', message_continues=False):
 
         #Setting opcode
         b1 = {
             'continuous': 0,
-            'text': 0 if user.sending_continuous else 1,
-            'binary': 0 if user.sending_continuous else 2,
+            'text': 0 if self.sending_continuous else 1,
+            'binary': 0 if self.sending_continuous else 2,
             'close': 8,
             'ping': 9,
             'pong': 10,
         }[message_type]
 
         if message_continues:
-            user.sending_continuous = True
+            self.sending_continuous = True
         else:
             b1 += 128
-            user.sending_continuous = False
+            self.sending_continuous = False
 
         length = len(message)
         length_field = ''
@@ -160,6 +164,25 @@ class Client:
 
         return chr(b1) + chr(b2) + length_field + message
 
+    def _frame(self, msg):
+        # if final frame = struct.pack("B", 128 | 0x1 | 0)
+        frame = struct.pack("B", 1 | 128)
+        l = len(msg)
+        frame += struct.pack("B", l | 0)
+        frame += str.encode(msg)
+        return frame
+
+
+    def write_message(self, msg, binary=False):
+        """  if binary:
+            msg_type = "binary"
+        else:
+            msg_type = "text"
+        """
+        data = self._frame(msg)
+        self.send_bytes(data)
+
+
     def send_string(self, data):
         self.send_bytes(str.encode(data))
 
@@ -167,8 +190,9 @@ class Client:
         return Client.OPEN == self.status
 
     def upgrade(self, key):
+        if self.status == Client.OPEN:
+            return
         update_header = RequestParser.create_update_header(key)
-        print(str.encode(update_header))
         self.send_string(update_header)
         self.status = Client.OPEN
 
@@ -189,8 +213,12 @@ class Client:
 
             # print(data.decode('utf-8'))
             req = RequestParser()
-            req.parse_request(data.decode('utf-8'))
-            print(req.headers)
+            try:
+                data = data.decode('utf-8')
+                req.parse_request(data)
+            except (AttributeError, UnicodeDecodeError):
+                break
+
             try:
                 if req.headers["Upgrade"].lower() == "websocket" and req.headers["Connection"].lower() == "upgrade":
                     self.upgrade(req.headers["Sec-WebSocket-Key"])
@@ -198,15 +226,17 @@ class Client:
                 print("UNRECOGNIZED REQ")
                 print(req.headers)
 
-            if self.server.on_message:
-                self.server.on_message(self.server.clients, data.decode('utf-8'))
+     #       if self.server.on_message:
+#                self.server.on_message(self.server.clients, data.decode('utf-8'))
 
 
 host = '0.0.0.0'
 port = 8080
 
-def on_open(clients):
-    pass
+def on_open(ws):
+    for c in ws.clients:
+        if c.is_open():
+            c.write_message("Nå har vi fått en ny klient!!")
 
 def on_message(msg, clients):
     pass
