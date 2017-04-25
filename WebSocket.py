@@ -65,7 +65,7 @@ class WebSocket:
 
     async def __async_send_to_all(self, data):
         for client in self.clients:
-            client.sendBytes(data)
+            client.send_bytes(data)
 
     async def __client_connected(self, reader, writer):
         client = Client(server=self, reader=reader, writer=writer, buffer_size=self.buffer_size)
@@ -83,7 +83,6 @@ class Client:
     CONNECTING = 0
     OPEN = 1
     CLOSED = 2
-    parser = RequestParser()
 
     def __init__(self, server: WebSocket, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, buffer_size: int):
         self.server = server
@@ -95,20 +94,19 @@ class Client:
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
 
-    def sendBytes(self, data):
+    def send_bytes(self, data):
         self.writer.write(data)
 
-    def sendString(self, data):
-        self.sendBytes(str.encode(data))
+    def send_string(self, data):
+        self.send_bytes(str.encode(data))
 
-    def isOpen(self):
+    def is_open(self):
         return Client.OPEN == self.status
 
-    def upgrade(self, header):
-        code = header["Sec-WebSocket-Key"]
-        updateHeader = RequestParser.create_update_header(code)
-        print(str.encode(updateHeader))
-        self.sendString(updateHeader)
+    def upgrade(self, key):
+        update_header = RequestParser.create_update_header(key)
+        print(str.encode(update_header))
+        self.send_string(update_header)
         self.status = Client.OPEN
 
     def close(self):
@@ -131,9 +129,8 @@ class Client:
             req.parse_request(data.decode('utf-8'))
             print(req.headers)
             try:
-                if (req.headers["Upgrade"] == "websocket" and req.headers["Connection"] == "Upgrade" and req.headers[
-                    "Sec-WebSocket-Key"] is not None):
-                    self.upgrade(req.headers)
+                if req.headers["Upgrade"].lower() == "websocket" and req.headers["Connection"].lower() == "upgrade":
+                    self.upgrade(req.headers["Sec-WebSocket-Key"])
             except KeyError:
                 print("UNRECOGNIZED REQ")
                 print(req.headers)
@@ -174,15 +171,10 @@ class WS(WebSocket):
     def on_close(self, client):
         self.send(WebSocket.OTHER, "We lost a client: "+client)
 
-<<<<<<< HEAD
+    def on_message(clients, msg):
+        for client in clients:
+            client.sendString("Vi mottok meldingen: " + msg)
 
-def on_message(clients, msg):
-    for client in clients:
-        client.sendString("Vi mottok meldingen: " + msg)
-
-
-ws = WebSocket(host, port, on_open=on_open, on_message=on_message)
-=======
 ws = WS(host, port)
 
 """
