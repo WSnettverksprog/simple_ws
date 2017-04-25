@@ -1,24 +1,65 @@
 import socket
+import hashlib
+import base64
 
-class Parser():
-    def create_header(self):
-        return "HTTP/1.1 200 OK\r\n\r\n"
+
+
+class RequestParser():
+    ws_const = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    def __init__(self, req=None):
+        self.headers = {}
+        self.body = ""
+        if req is not None:
+            self.parseRequest(req)
+
+    def parseRequest(self, req):
+        data = req.split("\r\n\r\n")
+        headers = data[0]
+        self.body = "\r\n\r\n".join(data[1:-1])
+        for line in headers.split("\r\n"):
+            try:
+                header_line = line.split(":")
+                self.headers[header_line[0].strip()] = header_line[1].strip()
+            except:
+                self.headers[line] = None
+
+
+    @staticmethod
+    def create_update_header(code):
+        const = RequestParser.ws_const
+        m = hashlib.sha1()
+        m.update(str.encode(code))
+        m.update(str.encode(const))
+        hashed = m.digest()
+        code = base64.b64encode(hashed)
+        header = "HTTP/1.1 101 Switching Protocols\r\n"
+        header += "Upgrade: websocket\r\n"
+        header += "Connection: Upgrade\r\n"
+        header += "Sec-WebSocket-Accept: "+code.decode("utf-8")+"\r\n\r\n"
+        return header
 
 class Client():
-
-    parser = Parser()
+    CONNECTING = 0
+    OPEN = 1
+    CLOSED = 2
+    parser = RequestParser()
     def __init__(self, conn, addr):
         self.conn = conn
         self.addr = addr
+        self.status = Client.CONNECTING
 
     def send(self, data):
-
-        payload = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "+str(len(data))+"\r\n\r\n"+data+"\r\n"
-        print(str.encode(payload))
-        self.conn.sendall(str.encode(payload))
+        pass
 
     def isOpen(self):
-        return True
+        return Client.OPEN == self.status
+
+    def upgrade(self, header):
+        code = header["Sec-WebSocket-Key"]
+        updateHeader = RequestParser.create_update_header(code)
+        print(str.encode(updateHeader))
+        self.conn.sendall(str.encode(updateHeader))
+
 
 
 class WebSocket():
@@ -41,11 +82,19 @@ class WebSocket():
         self.__listenForConn()
 
     def __listenForMsg(self, client):
+        req = RequestParser()
         while True:
             message = client.conn.recv(self.buffer_size)
             print(message)
-            if self.on_message:
-                self.on_message(self.clients, message.decode('utf-8'))
+            req.parseRequest(message.decode('utf-8'))
+            print(req.headers)
+            try:
+                if(req.headers["Upgrade"] == "websocket" and req.headers["Connection"] == "Upgrade" and req.headers["Sec-WebSocket-Key"] is not None):
+                    client.upgrade(req.headers)
+            except KeyError:
+                print("UNRECOGNIZED REQ")
+                print(req.headers)
+
 
 
 
@@ -60,16 +109,12 @@ class WebSocket():
             self.on_open(self.clients)
         self.__listenForMsg(client)
 
+    #def __handleUpgrade(self):
+
+
 
 host = ''
 port = 8080
-def on_open(clients):
-    for client in clients:
-        if client.isOpen():
-            print(client)
 
-def on_message(clients, msg):
-    for client in clients:
-        client.send("Vi mottok meldingen: "+msg)
+ws = WebSocket(host,port)
 
-ws = WebSocket(host,port, on_open=on_open, on_message=on_message)

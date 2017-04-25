@@ -1,0 +1,17 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <script type="text/javascript">
+        var ws = new WebSocket("ws://localhost:8080")
+        console.log(ws)
+    </script>
+  </head>
+  <body>
+    <div id="connection_label">
+      Connecting...
+    </div>
+    <div>
+      <canvas id="board" width="400" height="400" style="border:2px solid black;"></canvas>
+    </div>
+  </body>
+</html>
