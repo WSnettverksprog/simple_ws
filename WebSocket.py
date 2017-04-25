@@ -20,6 +20,20 @@ class Client():
     def isOpen(self):
         return True
 
+#All users connected to server, should have an object of this type
+class WebSocketUser():
+    def __init__(self, id, socket):
+        self.id = id
+        self.socket = socket
+        self.headers = []
+        self.handshake = False
+        self.handling_partial_packet = False
+        self.partial_buffer = ""
+        self.sending_continuous = False
+        self.partial_message = ""
+        self.has_sent_close = False
+
+
 
 class WebSocket():
     def __init__(self, host, port, on_open=None, on_message=None,
@@ -59,6 +73,54 @@ class WebSocket():
         if self.on_open is not None:
             self.on_open(self.clients)
         self.__listenForMsg(client)
+
+
+    def __frame(self, message, user, message_type='text', message_continues=False):
+
+        #Setting opcode
+        b1 = {
+            'continuous': 0,
+            'text': 0 if user.sending_continuous else 1,
+            'binary': 0 if user.sending_continuous else 2,
+            'close': 8,
+            'ping': 9,
+            'pong': 10,
+        }[message_type]
+
+        if message_continues:
+            user.sending_continuous = True
+        else:
+            b1 += 128
+            user.sending_continuous = False
+
+        length = len(message)
+        length_field = ''
+        if length < 126:
+            b2 = length
+        elif length < 65536:
+            b2 = 126
+            hex_length = hex(length)
+            if len(hex_length)%2 == 1:
+                hex_length = '0' + hex_length
+            n = len(hex_length) - 2
+
+            for i in range(n, 0, -2):
+                length_field = chr(int(hex_length[i:2],16)) + length_field
+            while len(length_field) < 2:
+                length_field = chr(0) + length_field
+        else:
+            b2 = 127
+            hex_length = hex(length)
+            if len(hex_length) % 2 == 1:
+                hex_length = '0' + hex_length
+            n = len(hex_length) - 2
+
+            for i in range(n, 0, -2):
+                length_field = chr(int(hex_length[i:2],16)) + length_field
+            while len(length_field) < 8:
+                length_field = chr(0) + length_field
+
+        return chr(b1) + chr(b2) + length_field + message
 
 
 host = ''
