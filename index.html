@@ -1,29 +1,96 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <script type="text/javascript">
-        var ws = new WebSocket("ws://localhost:8080")
-        console.log(ws)
-        ws.onerror = function (error) {
-            document.body.innerHTML = "Error occured:"
-            console.log(error)
-        }
-        ws.onopen = function () {
-            document.body.innerHTML = "Connection open!"
-            ws.send("Jeg sender en melding hvis jeg snakker med server")
+<script
+  src="https://code.jquery.com/jquery-3.2.1.min.js"
+  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+  crossorigin="anonymous"></script>    <script type="text/javascript">
+class Board {
+  constructor(context) {
+    this.context=context;
+    this.mouse_down=0;
 
-        }
-        ws.onmessage = function (message) {
-            document.body.innerHTML = "Client: "+message.data;
-            console.log(message)
-        }
-        ws.onclose = function (message) {
-            document.body.innerHTML = "Connection closed:\n"+message
-            console.log(message)
-        }
+    this.ws = new WebSocket("ws://localhost:8080");
 
+    this.ws.onerror = (error) => {
+      $("#connection_label").html("Not connected");
+    };
+
+    this.ws.onopen = () => {
+      $("#connection_label").html("Connected");
+    };
+
+    this.ws.onmessage = (event) => {
+      var json=JSON.parse(event.data);
+
+      if(json.line) {
+        this.draw_line(json.line.x1, json.line.y1, json.line.x2, json.line.y2);
+      }
+    };
+
+    this.ws.onclose = function(message) {
+      $("#connection_label").html("Not connected");
+    };
+  }
+
+  draw_line(x1, y1, x2, y2) {
+    this.context.lineWidth=1;
+    this.context.beginPath();
+    this.context.moveTo(x1, y1);
+    this.context.lineTo(x2,y2);
+    this.context.closePath();
+    this.context.stroke();
+  };
+
+  on_mouse_down(event) {
+    this.mouse_down=1;
+    this.last_x=event.offsetX;
+    this.last_y=event.offsetY;
+  }
+
+  on_mouse_up(event) {
+    this.mouse_down=0;
+  };
+
+  on_mouse_move(event) {
+    if(this.mouse_down>0) {
+      var x=event.offsetX;
+      var y=event.offsetY;
+
+      if(this.ws.readyState==1) {
+        var json={"line": { "x1": this.last_x, "y1": this.last_y, "x2": x, "y2": y}};
+
+        this.ws.send(JSON.stringify(json));
+      }
+
+      this.last_x=x;
+      this.last_y=y;
+    }
+  }
+}
+var board;
+//When this file is fully loaded, initialize board with context
+$(document).ready(function(){
+  board = new Board($('#board')[0].getContext('2d'));
+
+  $('body').mousedown((event) => {
+    board.on_mouse_down(event);
+  }).mouseup((event) => {
+    board.on_mouse_up(event);
+  });
+
+  $('#board').mousemove((event) => {
+    board.on_mouse_move(event)
+  });
+});
     </script>
   </head>
   <body>
+    <div id="connection_label">
+      Connecting...
+    </div>
+    <div>
+      <canvas id="board" width="400" height="400" style="border:2px solid black;"></canvas>
+    </div>
   </body>
 </html>
