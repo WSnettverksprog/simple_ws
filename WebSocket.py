@@ -70,9 +70,6 @@ class WebSocket:
     async def __client_connected(self, reader, writer):
         client = Client(server=self, reader=reader, writer=writer, buffer_size=self.buffer_size)
         self.clients.append(client)
-        if self.on_open is not None:
-            self.on_open(self)
-
 
     def disconnect(self, client):
         self.clients.remove(client)
@@ -171,30 +168,21 @@ class Client:
             - msg: data to be sendt
     """
     def _frame(self, opcode, fin, msg):
-        print(len(msg))
         msg = str.encode(msg)
         l = len(msg)
-        #If message is finished sending
         if(fin):
             finbit = 128
         else:
             finbit = 0
         frame = struct.pack("B", opcode | finbit)
-        print(frame)
         if l < 126:
             length = struct.pack("B", l)
-        elif l <= 127:
-            l_code = 126
-            length = struct.pack("B", l_code)
-            length += struct.pack("!H", l)
         elif l < 65536:
-            l_code = 127
-            length = struct.pack("B", l_code)
-            length += struct.pack("!Q", l)
-            print(length)
+            l_code = 126
+            length = struct.pack("!BH", l_code, l)
         else:
-            raise ValueError("Message can't exceed 65536 bytes")
-        print(l)
+            l_code = 127
+            length = struct.pack("!BQ", l_code, l)
 
         frame += length
         frame += msg
@@ -210,6 +198,59 @@ class Client:
         data = self._frame(1, True, msg)
         self.send_bytes(data)
 
+    def unmask(self, mask, bit_tuple):
+        res = []
+        c = 0
+        for byte in bit_tuple:
+            res.append(byte ^ mask[c % 4])
+            c += 1
+        return ''.join([chr(x) for x in res])
+
+
+    def _rec_frame(self, msg):
+        offset = 0
+        head, payload_len = struct.unpack_from("BB", msg)
+        offset += 2
+        fin = head & 0x80 == 0x80
+        opcode = head & 0xF
+        has_mask = payload_len & 0x80 == 0x80
+        l = payload_len & 0x7F
+        if not has_mask:
+            self.close()
+            raise Exception("Unmasked message sent from client, abort connection")
+
+        if l < 126:
+            mask = struct.unpack_from("BBBB", msg, offset=offset)
+            offset += 4
+            try:
+                return self.unmask(mask, struct.unpack_from("B"*l, msg, offset=offset))
+            except:
+                self.close()
+                raise Exception("Message does not follow protocol, abort connection")
+
+        elif l < 65536:
+            print(offset)
+            l = struct.unpack_from("!H", msg, offset=offset)
+            offset += 2
+            mask = struct.unpack_from("BBBB", msg, offset=offset)
+            offset += 4
+            try:
+                return self.unmask(mask, struct.unpack_from("B"*int(l[0]), msg, offset=offset))
+            except:
+                self.close()
+                raise Exception("Message does not follow protocol, abort connection")
+
+        else:
+            l = struct.unpack_from("!Q", msg, offset=offset)
+            offset += 8
+            mask = struct.unpack_from("BBBB", msg, offset=offset)
+            offset += 4
+            try:
+                return self.unmask(mask, struct.unpack_from("B"*int(l[0]), msg, offset=offset))
+            except:
+                self.close()
+                raise Exception("Message does not follow protocol, abort connection")
+
 
     def send_string(self, data):
         self.send_bytes(str.encode(data))
@@ -223,6 +264,8 @@ class Client:
         update_header = RequestParser.create_update_header(key)
         self.send_string(update_header)
         self.status = Client.OPEN
+        if self.server.on_open:
+            self.server.on_open(self.server)
 
     def close(self):
         if self.status == Client.CLOSED:
@@ -240,23 +283,25 @@ class Client:
                 return
 
             # print(data.decode('utf-8'))
-            req = RequestParser()
-            try:
-                data = data.decode('utf-8')
-                req.parse_request(data)
-            except (AttributeError, UnicodeDecodeError):
-                break
+            if self.status == Client.CONNECTING:
+                req = RequestParser()
+                try:
+                    data = data.decode('utf-8')
+                    req.parse_request(data)
+                except (AttributeError, UnicodeDecodeError):
+                    break
 
-            try:
-                if req.headers["Upgrade"].lower() == "websocket" and req.headers["Connection"].lower() == "upgrade":
-                    self.upgrade(req.headers["Sec-WebSocket-Key"])
-            except KeyError:
-                print("UNRECOGNIZED REQ")
-                print(req.headers)
-
-     #       if self.server.on_message:
-#                self.server.on_message(self.server.clients, data.decode('utf-8'))
-
+                try:
+                    if req.headers["Upgrade"].lower() == "websocket" and req.headers["Connection"].lower() == "upgrade":
+                        self.upgrade(req.headers["Sec-WebSocket-Key"])
+                except KeyError:
+                    print("UNRECOGNIZED REQ")
+                    print(req.headers)
+            elif self.status == Client.OPEN:
+                if self.server.on_message:
+                    self.server.on_message(self._rec_frame(data), self.server)
+            else:
+                raise Exception("Recieved message from client who was not open or connecting")
 
 host = '0.0.0.0'
 port = 8080
@@ -264,10 +309,14 @@ port = 8080
 def on_open(ws):
     for c in ws.clients:
         if c.is_open():
-            c.write_message("Vi har fått en ny klient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            c.write_message("Vi har fått en ny klient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-def on_message(msg, clients):
-    pass
+def on_message(msg, ws):
+    for c in ws.clients:
+        if c.is_open():
+            c.write_message("Server: "+msg)
+
 
 def on_error(err, clients):
     pass
@@ -276,6 +325,7 @@ def on_close(clients):
     pass
 
 ws = WebSocket(host,port, on_open=on_open, on_message=on_message, on_error=on_error, on_close=on_close)
+
 
 """"
 Interface example:
