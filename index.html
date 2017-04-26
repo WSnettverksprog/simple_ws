@@ -10,9 +10,11 @@
         }
         ws.onopen = function () {
             document.body.innerHTML = "Connection open!"
+            ws.send("Jeg sender en melding hvis jeg snakker med server")
+
         }
         ws.onmessage = function (message) {
-            document.body.innerHTML = "Message recieved:\n"+ message.data
+            document.body.innerHTML = "Client: "+message.data;
             console.log(message)
         }
         ws.onclose = function (message) {
