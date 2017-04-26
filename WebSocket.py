@@ -165,11 +165,12 @@ class Client:
         return chr(b1) + chr(b2) + length_field + message
 
     def _frame(self, msg):
-        # if final frame = struct.pack("B", 128 | 0x1 | 0)
         frame = struct.pack("B", 1 | 128)
+        msg = str.encode(msg)
         l = len(msg)
-        frame += struct.pack("B", l | 0)
-        frame += str.encode(msg)
+        length = struct.pack("B", l)
+        frame += length
+        frame += msg
         return frame
 
 

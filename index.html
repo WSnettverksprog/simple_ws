@@ -10,6 +10,7 @@
         }
         ws.onopen = function () {
             document.body.innerHTML = "Connection open!"
+            ws.send("Dette er en melding")
         }
         ws.onmessage = function (message) {
             document.body.innerHTML = "Message recieved:\n"+ message.data
@@ -19,6 +20,7 @@
             document.body.innerHTML = "Connection closed:\n"+message
             console.log(message)
         }
+
     </script>
   </head>
   <body>
