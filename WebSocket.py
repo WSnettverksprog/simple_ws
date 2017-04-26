@@ -306,25 +306,12 @@ class Client:
 host = '0.0.0.0'
 port = 8080
 
-def on_open(ws):
-    for c in ws.clients:
-        if c.is_open():
-            c.write_message("Vi har fått en ny klient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-                            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
 def on_message(msg, ws):
     for c in ws.clients:
         if c.is_open():
-            c.write_message("Server: "+msg)
+            c.write_message(msg)
 
-
-def on_error(err, clients):
-    pass
-
-def on_close(clients):
-    pass
-
-ws = WebSocket(host,port, on_open=on_open, on_message=on_message, on_error=on_error, on_close=on_close)
+ws = WebSocket(host,port, on_message=on_message)
 
 
 """"
