@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import base64
-import time
 import struct
 loop = asyncio.get_event_loop()
 
@@ -164,11 +163,39 @@ class Client:
 
         return chr(b1) + chr(b2) + length_field + message
 
-    def _frame(self, msg):
-        frame = struct.pack("B", 1 | 128)
+    """
+        Desc: Creates a frame with data to send
+        Input:
+            -  opcode: int: 0 = Continous message, 1 = Msg is text, 2 = Msg is binary, 8 = Close, 9 = ping, 10 = pong
+            - fin: bool: True = last message, False = more messages to come
+            - msg: data to be sendt
+    """
+    def _frame(self, opcode, fin, msg):
+        print(len(msg))
         msg = str.encode(msg)
         l = len(msg)
-        length = struct.pack("B", l)
+        #If message is finished sending
+        if(fin):
+            finbit = 128
+        else:
+            finbit = 0
+        frame = struct.pack("B", opcode | finbit)
+        print(frame)
+        if l < 126:
+            length = struct.pack("B", l)
+        elif l <= 127:
+            l_code = 126
+            length = struct.pack("B", l_code)
+            length += struct.pack("!H", l)
+        elif l < 65536:
+            l_code = 127
+            length = struct.pack("B", l_code)
+            length += struct.pack("!Q", l)
+            print(length)
+        else:
+            raise ValueError("Message can't exceed 65536 bytes")
+        print(l)
+
         frame += length
         frame += msg
         return frame
@@ -180,7 +207,7 @@ class Client:
         else:
             msg_type = "text"
         """
-        data = self._frame(msg)
+        data = self._frame(1, True, msg)
         self.send_bytes(data)
 
 
@@ -237,7 +264,7 @@ port = 8080
 def on_open(ws):
     for c in ws.clients:
         if c.is_open():
-            c.write_message("Nå har vi fått en ny klient!!")
+            c.write_message("Vi har fått en ny klient!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 def on_message(msg, clients):
     pass
