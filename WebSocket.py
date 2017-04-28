@@ -195,6 +195,7 @@ class Client:
         else:
             finbit = 0
         frame = struct.pack("B", opcode | finbit)
+        print(frame)
         if l < 126:
             length = struct.pack("B", l)
         elif l < 65536:
@@ -215,8 +216,6 @@ class Client:
         else:
             msg_type = "text"
         """
-        if self.close:
-
         data = self._frame(1, True, msg)
         self.send_bytes(data)
 
@@ -236,12 +235,14 @@ class Client:
         offset += 2
         fin = head & 0x80 == 0x80
         opcode = head & 0xF
+        if opcode is Client._close:
+            self._close_rec = True
+            print(self._close_rec)
         has_mask = payload_len & 0x80 == 0x80
         l = payload_len & 0x7F
         if not has_mask:
             self.close()
             raise Exception("Unmasked message sent from client, abort connection")
-
         if l < 126:
             mask = struct.unpack_from("BBBB", msg, offset=offset)
             offset += 4
@@ -319,7 +320,11 @@ class Client:
                     print("UNRECOGNIZED REQ")
                     print(req.headers)
             elif self.status == Client.OPEN:
-                self.server.on_message(self._rec_frame(data), self)
+                msg = self._rec_frame(data)
+                self.server.on_message(msg, self)
+                if self._close_rec:
+                    self._close_conn_res()
+
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
 
@@ -334,11 +339,22 @@ class Client:
     def _force_close(self,timeout):
         loop.create_task(self._async_force_close(timeout))
 
-    def _close_conn(self):
+    def _close_conn_res(self):
+        if not self._close_sent:
+            data = self._frame(Client._close, True, "")
+            self.send_bytes(data)
+            self._close_sent = True
+            self.close()
+        else:
+            self.close()
+
+    def _close_conn_req(self, status, reason):
+        #Status and reason not implemented
         if not self._close_sent:
             data = self._frame(Client._close, True, "")
             self.send_bytes(data)
             self._force_close(1)
+
 
 
 
@@ -358,6 +374,9 @@ class WSHandler(WebSocket):
 
     def on_open(self, client):
         print("Client connected!")
+
+    def on_close(self, client):
+        print("Client left...")
 
 
 host = '0.0.0.0'
