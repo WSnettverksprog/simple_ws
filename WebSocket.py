@@ -2,7 +2,8 @@ import asyncio
 import hashlib
 import base64
 import struct
-import timeit
+import math
+import time
 loop = asyncio.get_event_loop()
 
 
@@ -90,6 +91,15 @@ class Client:
     OPEN = 1
     CLOSED = 2
 
+    #RFC-specific opcodes
+    _continuous = 0x0
+    _text = 0x1
+    _binary = 0x2
+    _close = 0x8
+    _ping = 0x9
+    _pong = 0xA
+
+
     """
         Ole trenger:
 
@@ -113,6 +123,8 @@ class Client:
         self.buffer_size = buffer_size
         self.status = Client.CONNECTING
         self.sending_continuous = False
+        self._close_sent = False
+        self._close_rec = False
 
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
@@ -203,6 +215,8 @@ class Client:
         else:
             msg_type = "text"
         """
+        if self.close:
+
         data = self._frame(1, True, msg)
         self.send_bytes(data)
 
@@ -309,6 +323,31 @@ class Client:
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
 
+    #Call this class every time close frame is sent or recieved
+    #Checks if client has requested closing, if so sends a closing frame and closes connection
+    #If close frame is sent and recieved
+    async def _async_force_close(self, timeout):
+        await asyncio.sleep(timeout)
+        if not self._close_rec:
+            self.close()
+
+    def _force_close(self,timeout):
+        loop.create_task(self._async_force_close(timeout))
+
+    def _close_conn(self):
+        if not self._close_sent:
+            data = self._frame(Client._close, True, "")
+            self.send_bytes(data)
+            self._force_close(1)
+
+
+
+
+
+
+
+
+
 
 class WSHandler(WebSocket):
 
@@ -319,8 +358,6 @@ class WSHandler(WebSocket):
 
     def on_open(self, client):
         print("Client connected!")
-
-
 
 
 host = '0.0.0.0'
