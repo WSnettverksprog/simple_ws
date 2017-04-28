@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import base64
 import struct
+import timeit
 loop = asyncio.get_event_loop()
 
 
@@ -41,15 +42,10 @@ class RequestParser():
 
 
 class WebSocket:
-    def __init__(self, host, port, on_open=None, on_message=None,
-                 on_error=None, on_close=None, buffer_size=4096, max_connections=10):
+    def __init__(self, host, port, buffer_size=4096, max_connections=10):
         self.clients = []
         self.host = host
         self.port = port
-        self.on_open = on_open
-        self.on_message = on_message
-        self.on_error = on_error
-        self.on_close = on_close
 
         # Not currently used
         self.max_connections = max_connections
@@ -73,8 +69,20 @@ class WebSocket:
 
     def disconnect(self, client):
         self.clients.remove(client)
-        if self.on_close is not None:
-            self.on_close(client)
+        self.on_close(client)
+
+    def on_open(self, client):
+        #Override to handle connections on open
+        return None
+    def on_message(self, msg, client):
+        #Override to handle messages from client
+        return None
+    def on_error(self, err, client):
+        #Override to handle error
+        return None
+    def on_close(self, client):
+        #Override to handle closing of client
+        return None
 
 
 class Client:
@@ -205,6 +213,7 @@ class Client:
             res.append(byte ^ mask[c % 4])
             c += 1
         return ''.join([chr(x) for x in res])
+        #return bytes(res).decode()
 
 
     def _rec_frame(self, msg):
@@ -229,7 +238,6 @@ class Client:
                 raise Exception("Message does not follow protocol, abort connection")
 
         elif l < 65536:
-            print(offset)
             l = struct.unpack_from("!H", msg, offset=offset)
             offset += 2
             mask = struct.unpack_from("BBBB", msg, offset=offset)
@@ -282,7 +290,6 @@ class Client:
                 self.close()
                 return
 
-            # print(data.decode('utf-8'))
             if self.status == Client.CONNECTING:
                 req = RequestParser()
                 try:
@@ -298,21 +305,28 @@ class Client:
                     print("UNRECOGNIZED REQ")
                     print(req.headers)
             elif self.status == Client.OPEN:
-                if self.server.on_message:
-                    self.server.on_message(self._rec_frame(data), self.server)
+                self.server.on_message(self._rec_frame(data), self)
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
+
+
+class WSHandler(WebSocket):
+
+    def on_message(self, msg, client):
+        for c in self.clients:
+            if c.status == c.is_open():
+                c.write_message(msg)
+
+    def on_open(self, client):
+        print("Client connected!")
+
+
+
 
 host = '0.0.0.0'
 port = 8080
 
-def on_message(msg, ws):
-    for c in ws.clients:
-        if c.is_open():
-            c.write_message(msg)
-
-ws = WebSocket(host,port, on_message=on_message)
-
+ws = WSHandler(host,port)
 
 """"
 Interface example:
