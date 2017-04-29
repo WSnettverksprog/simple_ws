@@ -269,7 +269,7 @@ class Client:
             elif self.status == Client.OPEN:
                 try:
                     frame = WebSocketFrame(raw_data=data)
-                    self.process_frame(frame)
+                    self.__process_frame(frame)
                 except Exception as e:
                     print("Invalid frame received, closing connection (" + str(e) + ")")
                     self.close()
@@ -277,7 +277,7 @@ class Client:
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
 
-    def process_frame(self, frame):
+    def __process_frame(self, frame):
         if frame.opcode == WebSocketFrame.CONTINUOUS:
             pass  # TODO: Continuous
         elif frame.opcode == WebSocketFrame.TEXT:
