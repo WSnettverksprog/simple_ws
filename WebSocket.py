@@ -278,6 +278,14 @@ class Client:
         self.writer.close()
         self.server.disconnect(self)
 
+    def ping(self):
+        frame = WebSocketFrame(opcode=WebSocketFrame.PING)
+        self.send_bytes(frame.construct())
+
+    def pong(self):
+        frame = WebSocketFrame(opcode=WebSocketFrame.PONG)
+        self.send_bytes(frame.construct())
+
     async def __wait_for_data(self):
         while self.status != Client.CLOSED:
             data = await self.reader.read(self.buffer_size)
@@ -322,9 +330,9 @@ class Client:
             self.__close_received = True
             self.__close_conn_res()
         elif opcode == WebSocketFrame.PING:
-            pass  # TODO: Ping
+            self.pong()
         elif opcode == WebSocketFrame.PONG:
-            pass  # TODO: Ping
+            pass  # Do nothing here?
 
     # Call this class every time close frame is sent or recieved
     # Checks if client has requested closing, if so sends a closing frame and closes connection
@@ -369,7 +377,7 @@ class WSHandler(WebSocket):
         print("Client left...")
 
 
-host = '0.0.0.0'
+host = ''
 port = 8080
 
 ws = WSHandler(host, port)
