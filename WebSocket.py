@@ -55,7 +55,10 @@ class WebSocketFrame():
     def __init__(self, opcode=TEXT, fin=True, payload=None, mask=None, raw_data=None):
         self.fin = fin
         self.opcode = opcode
-        self.payload = payload
+        if opcode is WebSocketFrame.TEXT and payload:
+            self.payload = str.encode(payload)
+        else:
+            self.payload = payload
         self.mask = mask
         self.incomplete_message = False
         self.frame_size = 0
@@ -89,7 +92,7 @@ class WebSocketFrame():
             length = struct.pack("!BQ", l_code, l)
 
         frame += length
-        frame += str.encode(self.payload)
+        frame += self.payload
         return frame
 
     def __unmask(self, bit_tuple):
@@ -149,13 +152,13 @@ class WebSocketFrame():
 
 class FrameReader():
     def __init__(self):
-        self.current_message = b''
-        self.recieved_data = b''
+        self.current_message = bytearray()
+        self.recieved_data = bytearray()
         self.opcode = -1
         self.frame_size = 0
 
     def read_message(self, data):
-        self.recieved_data += data
+        self.recieved_data.extend(data)
         if len(self.recieved_data) < self.frame_size:
             return -1, None
         frame = WebSocketFrame(raw_data=self.recieved_data)
@@ -165,11 +168,11 @@ class FrameReader():
 
         if frame.opcode is not WebSocketFrame.CONTINUOUS:
             self.opcode = frame.opcode
-        self.current_message += frame.payload
+        self.current_message.extend(frame.payload)
         if frame.fin:
             out = frame.opcode, self.current_message
-            self.current_message = b''
-            self.recieved_data = b''
+            self.current_message = bytearray()
+            self.recieved_data = bytearray()
             return out
         return -1, None
 
