@@ -52,7 +52,7 @@ class WebSocketFrame():
     def has_mask(self):
         return self.mask is not None
 
-    def __init__(self, opcode=TEXT, fin=True, payload=None, mask=None, raw_data=None):
+    def __init__(self, opcode=TEXT, fin=True, payload="", mask=None, raw_data=None):
         self.fin = fin
         self.opcode = opcode
         if opcode is WebSocketFrame.TEXT and payload:
@@ -240,9 +240,12 @@ class Client:
         self._close_sent = False
         self.__close_received = False
         self.__frame_reader = FrameReader()
+        self.__pong_recieved = False
 
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
+        # Create async task to send pings
+        loop.create_task(self.send_ping())
 
     def send_bytes(self, data):
         self.writer.write(data)
@@ -281,11 +284,17 @@ class Client:
         self.writer.close()
         self.server.disconnect(self)
 
-    def ping(self):
-        frame = WebSocketFrame(opcode=WebSocketFrame.PING)
-        self.send_bytes(frame.construct())
+    async def send_ping(self):
+        while self.status != Client.CLOSED:
+            self.__pong_recieved = False
+            frame = WebSocketFrame(opcode=WebSocketFrame.PING)
+            self.send_bytes(frame.construct())
+            await asyncio.sleep(1)
+            if not self.__pong_recieved:
+                self.close()
 
-    def pong(self):
+
+    def send_pong(self):
         frame = WebSocketFrame(opcode=WebSocketFrame.PONG)
         self.send_bytes(frame.construct())
 
@@ -333,9 +342,9 @@ class Client:
             self.__close_received = True
             self.__close_conn_res()
         elif opcode == WebSocketFrame.PING:
-            self.pong()
+            self.send_pong()
         elif opcode == WebSocketFrame.PONG:
-            pass  # Do nothing here?
+            self.__pong_recieved = True
 
     # Call this class every time close frame is sent or recieved
     # Checks if client has requested closing, if so sends a closing frame and closes connection
