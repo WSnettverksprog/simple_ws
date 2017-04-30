@@ -2,7 +2,6 @@ import asyncio
 import hashlib
 import base64
 import struct
-import chardet
 loop = asyncio.get_event_loop()
 
 
