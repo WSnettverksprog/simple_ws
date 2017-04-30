@@ -52,7 +52,7 @@ class WebSocketFrame():
     def has_mask(self):
         return self.mask is not None
 
-    def __init__(self, opcode=TEXT, fin=True, payload=None, mask=None, raw_data=None):
+    def __init__(self, opcode=TEXT, fin=True, payload="", mask=None, raw_data=None):
         self.fin = fin
         self.opcode = opcode
         self.payload = payload
