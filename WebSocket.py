@@ -328,9 +328,7 @@ class Client:
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
 
-    #Call this class every time close frame is sent or recieved
-    #Checks if client has requested closing, if so sends a closing frame and closes connection
-    #If close frame is sent and recieved
+
     async def _async_force_close(self, timeout):
         await asyncio.sleep(timeout)
         if not self._close_rec:
@@ -339,6 +337,7 @@ class Client:
     def _force_close(self,timeout):
         loop.create_task(self._async_force_close(timeout))
 
+    #Call this class to respond to a close connection request
     def _close_conn_res(self):
         if not self._close_sent:
             data = self._frame(Client._close, True, "")
@@ -348,6 +347,7 @@ class Client:
         else:
             self.close()
 
+    #Call class to request closing of connection to client
     def _close_conn_req(self, status, reason):
         #Status and reason not implemented
         if not self._close_sent:
