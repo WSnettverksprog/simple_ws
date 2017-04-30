@@ -24,6 +24,7 @@ class Board {
       var json=JSON.parse(event.data);
 
       if(json.line) {
+
         this.draw_line(json.line.x1, json.line.y1, json.line.x2, json.line.y2);
       }
     };
