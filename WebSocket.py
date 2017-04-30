@@ -2,9 +2,7 @@ import asyncio
 import hashlib
 import base64
 import struct
-import math
-import time
-
+import chardet
 loop = asyncio.get_event_loop()
 
 
@@ -60,6 +58,8 @@ class WebSocketFrame():
         self.opcode = opcode
         self.payload = payload
         self.mask = mask
+        self.incomplete_message = False
+        self.frame_size = 0
 
         # Parse message if raw_data isn't None
         if raw_data is not None:
@@ -80,7 +80,6 @@ class WebSocketFrame():
         else:
             finbit = 0
         frame = struct.pack("B", self.opcode | finbit)
-        print(frame)
         if l < 126:
             length = struct.pack("B", l)
         elif l < 65536:
@@ -109,7 +108,6 @@ class WebSocketFrame():
         offset += 2
         self.fin = head & 0x80 == 0x80
         self.opcode = head & 0xF
-
         has_mask = payload_len & 0x80 == 0x80
         if not has_mask:
             raise Exception("Frame without mask")
@@ -120,27 +118,62 @@ class WebSocketFrame():
             if l < 126:
                 self.mask = struct.unpack_from("BBBB", raw_data, offset=offset)
                 offset += 4
+                self.frame_size = l + offset
                 self.payload = self.__unmask(struct.unpack_from("B" * l, raw_data, offset=offset))
 
-            elif l < 65536:
-                l = struct.unpack_from("!H", raw_data, offset=offset)
+            elif l == 126:
+                l = struct.unpack_from("!H", raw_data, offset=offset)[0]
                 offset += 2
                 self.mask = struct.unpack_from("BBBB", raw_data, offset=offset)
                 offset += 4
-                self.payload = self.__unmask(struct.unpack_from("B" * int(l[0]), raw_data, offset=offset))
+                self.frame_size = l + offset
+                if l > len(raw_data) - offset:
+                    self.incomplete_message = True
+                    return
+                self.incomplete_message = False
+                self.payload = self.__unmask(struct.unpack_from("B" * l, raw_data, offset=offset))
 
             else:
-                l = struct.unpack_from("!Q", raw_data, offset=offset)
+                l = struct.unpack_from("!Q", raw_data, offset=offset)[0]
                 offset += 8
                 self.mask = struct.unpack_from("BBBB", raw_data, offset=offset)
                 offset += 4
-                self.payload = self.__unmask(struct.unpack_from("B" * int(l[0]), raw_data, offset=offset))
+                self.frame_size = l + offset
+                self.payload = self.__unmask(struct.unpack_from("B" * l, raw_data, offset=offset))
 
         except:
-            raise Exception("Frame does not follow protocol")
+            pass
+            #raise Exception("Frame does not follow protocol")
 
-        if self.opcode == WebSocketFrame.TEXT:
-            self.payload = self.payload.decode('utf-8')
+       # if self.opcode == WebSocketFrame.TEXT:
+        #    self.payload = self.payload.decode('utf-8')
+
+class FrameReader():
+    def __init__(self):
+        self.current_message = b''
+        self.recieved_data = b''
+        self.opcode = -1
+        self.frame_size = 0
+
+    def read_message(self, data):
+        self.recieved_data += data
+        if len(self.recieved_data) < self.frame_size:
+            return -1, None
+        frame = WebSocketFrame(raw_data=self.recieved_data)
+        self.frame_size = frame.frame_size
+        if frame.incomplete_message:
+            return -1, None
+
+        if frame.opcode is not WebSocketFrame.CONTINUOUS:
+            self.opcode = frame.opcode
+        self.current_message += frame.payload
+        if frame.fin:
+            out = frame.opcode, self.current_message
+            self.current_message = b''
+            self.recieved_data = b''
+            return out
+        return -1, None
+
 
 
 class WebSocket:
@@ -204,12 +237,12 @@ class Client:
         self.sending_continuous = False
         self._close_sent = False
         self.__close_received = False
+        self.__frame_reader = FrameReader()
 
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
 
     def send_bytes(self, data):
-        print(data)
         self.writer.write(data)
 
     # TODO: Binary
@@ -219,6 +252,7 @@ class Client:
         else:
             msg_type = "text"
         """
+
         frame = WebSocketFrame(opcode=WebSocketFrame.TEXT, fin=True, payload=msg)
         self.send_bytes(frame.construct())
 
@@ -268,8 +302,8 @@ class Client:
                     print(req.headers)
             elif self.status == Client.OPEN:
                 try:
-                    frame = WebSocketFrame(raw_data=data)
-                    self.__process_frame(frame)
+                    opcode, msg = self.__frame_reader.read_message(data)
+                    self.__process_frame(opcode, msg)
                 except Exception as e:
                     print("Invalid frame received, closing connection (" + str(e) + ")")
                     self.close()
@@ -277,19 +311,20 @@ class Client:
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
 
-    def __process_frame(self, frame):
-        if frame.opcode == WebSocketFrame.CONTINUOUS:
-            pass  # TODO: Continuous
-        elif frame.opcode == WebSocketFrame.TEXT:
-            self.server.on_message(frame.payload, self)
-        elif frame.opcode == WebSocketFrame.BINARY:
-            self.server.on_message(frame.payload, self)
-        elif frame.opcode == WebSocketFrame.CLOSE:
+    def __process_frame(self, opcode, message):
+        if opcode <= WebSocketFrame.CONTINUOUS:
+            return
+        elif opcode == WebSocketFrame.TEXT:
+            message = message.decode('utf-8')
+            self.server.on_message(message, self)
+        elif opcode == WebSocketFrame.BINARY:
+            self.server.on_message(message, self)
+        elif opcode == WebSocketFrame.CLOSE:
             self.__close_received = True
             self.__close_conn_res()
-        elif frame.opcode == WebSocketFrame.PING:
+        elif opcode == WebSocketFrame.PING:
             pass  # TODO: Ping
-        elif frame.opcode == WebSocketFrame.PONG:
+        elif opcode == WebSocketFrame.PONG:
             pass  # TODO: Ping
 
     # Call this class every time close frame is sent or recieved
