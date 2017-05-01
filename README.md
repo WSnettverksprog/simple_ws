@@ -12,6 +12,6 @@ To test the library, open two command windows and cd into python-WS directory
 2. Write tests
 3. Extensions (compression etc.)
 4. ~Framework interface~
-5. Ping, Pong and ~Closing~
+5. ~Ping, Pong and Closing~ (Extend ping and pong to support data)
 6. Error handling
 7. Clean up classes
