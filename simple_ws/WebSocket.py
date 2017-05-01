@@ -99,7 +99,9 @@ class WebSocketFrame():
         frame_num = 0
         while l > 0:
             finbit = 128 if (l <= self.max_frame_size) else 0
-            opcode = self.opcode if (frame_num == 0) else WebSocketFrame.CONTINUOUS
+            print(self.)
+            print(frame_num)
+            opcode = self.opcode if (frame_num is 0) else WebSocketFrame.CONTINUOUS
             payload = (self.payload)[(self.max_frame_size * frame_num) : (min((self.max_frame_size),l))]
             frames.append(self.__make_frame(finbit, opcode, payload))
             frame_num += 1
@@ -285,6 +287,7 @@ class Client:
         loop.create_task(self.__wait_for_data())
         # Create async task to send pings
         if self.server.ping:
+            print(self.server.ping)
             loop.create_task(self.send_ping())
 
     def send_frames(self, frames):
@@ -336,9 +339,11 @@ class Client:
                 self.__pong_received = False
                 frame = WebSocketFrame(opcode=WebSocketFrame.PING)
                 self.send_frames(frame.construct())
+                print("ping!")
                 await asyncio.sleep(self.server.ping_interval)
                 if not self.__pong_received:
-                    self.close()
+                    print("no pong?")
+                    self.__close_conn_req(1002, "Pong not recieved")
 
 
 
