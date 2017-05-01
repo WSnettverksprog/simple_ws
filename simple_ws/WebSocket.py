@@ -22,9 +22,23 @@ class RequestParser():
         for line in headers.split("\r\n"):
             try:
                 header_line = line.split(":")
-                self.headers[header_line[0].strip()] = ":".join(header_line[1:]).strip().lower()
+                if(len(header_line) < 2):
+                    raise Exception
+                self.headers[header_line[0].strip()] = ":".join(header_line[1:]).strip()
             except:
-                self.headers[line] = None
+                if line.index("GET") > -1:
+                    self.headers["HTTP"] = line.lower()
+                else:
+                    self.headers[line] = None
+
+    def is_valid_request(self, header):
+        assert header["HTTP"].lower().index("get") > -1
+        assert header["Host"] is not None
+        assert header["Upgrade"].lower() == "websocket"
+        assert header["Connection"].lower() == "upgrade"
+        assert header["Sec-WebSocket-Key"] is not None
+        assert int(header["Sec-WebSocket-Version"]) == 13
+        return True
 
     @staticmethod
     def create_update_header(key):
@@ -327,23 +341,23 @@ class Client:
                 try:
                     data = data.decode('utf-8')
                     req.parse_request(data)
-                except (AttributeError, UnicodeDecodeError):
-                    print("HER1")
-                    break
+                except Exception as e:
+                    raise UnicodeDecodeError("Error when decoding upgrade request to unicode ( "+str(e)+" )")
 
                 try:
-                    if req.headers["Upgrade"].lower() == "websocket" and req.headers["Connection"].lower() == "upgrade":
-                        self.upgrade(req.headers["Sec-WebSocket-Key"])
-                except KeyError:
-                    print("UNRECOGNIZED REQ")
-                    print(req.headers)
+                    req.is_valid_request(req.headers)
+                    self.upgrade(req.headers["Sec-WebSocket-Key"])
+                except AssertionError as a:
+                    self.close()
+                    raise Exception("Upgrade request does not follow protocol ( "+str(a)+" )")
+
             elif self.status == Client.OPEN:
                 try:
                     opcode, msg = self.__frame_reader.read_message(data)
                     self.__process_frame(opcode, msg)
                 except Exception as e:
-                    print("Invalid frame received, closing connection (" + str(e) + ")")
                     self.close()
+                    raise Exception("Invalid frame received, closing connection (" + str(e) + ")")
                     return
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
