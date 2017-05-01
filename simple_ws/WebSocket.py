@@ -356,8 +356,8 @@ class Client:
                     opcode, msg = self.__frame_reader.read_message(data)
                     self.__process_frame(opcode, msg)
                 except Exception as e:
-                    print("Invalid frame received, closing connection (" + str(e) + ")")
                     self.close()
+                    raise Exception("Invalid frame received, closing connection (" + str(e) + ")")
                     return
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
