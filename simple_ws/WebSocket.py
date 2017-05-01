@@ -70,7 +70,7 @@ class WebSocketFrame():
     def has_mask(self):
         return self.mask is not None
 
-    def __init__(self, opcode=TEXT, payload="", mask=None, raw_data=None, max_frame_size=8192):
+    def __init__(self, opcode=TEXT, payload="", mask=None, raw_data=None, max_frame_size=0):
         self.opcode = opcode
         if opcode is WebSocketFrame.TEXT and payload:
             self.payload = str.encode(payload)
@@ -213,7 +213,7 @@ class FrameReader():
 
 class WebSocket:
 
-    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=30, max_connections=10):
+    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=8192, max_connections=10):
         self.clients = []
         self.host = host
         self.port = port
@@ -338,7 +338,7 @@ class Client:
                     await asyncio.sleep(self.server.ping_interval)
                     continue
                 self.__pong_received = False
-                frame = WebSocketFrame(opcode=WebSocketFrame.PING)
+                frame = WebSocketFrame(opcode=WebSocketFrame.PING, max_frame_size=self.server.max_frame_size)
                 self.send_frames(frame.construct())
                 await asyncio.sleep(self.server.ping_interval)
                 if not self.__pong_received:
@@ -347,7 +347,7 @@ class Client:
 
 
     def send_pong(self):
-        frame = WebSocketFrame(opcode=WebSocketFrame.PONG)
+        frame = WebSocketFrame(opcode=WebSocketFrame.PONG, max_frame_size=self.server.max_frame_size)
         self.send_frames(frame.construct())
 
     async def __wait_for_data(self):
@@ -417,7 +417,7 @@ class Client:
     #Call this class to respond to a close connection request
     def __close_conn_res(self):
         if not self._close_sent:
-            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE)
+            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE, max_frame_size=self.server.max_frame_size)
             self.send_frames(frame.construct())
             self._close_sent = True
             self.close()
@@ -428,7 +428,7 @@ class Client:
     def __close_conn_req(self, status, reason):
         # Status and reason not implemented
         if not self._close_sent:
-            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE)
+            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE, max_frame_size=self.server.max_frame_size)
             self.send_frames(frame.construct())
             self.__force_close(1)
 
