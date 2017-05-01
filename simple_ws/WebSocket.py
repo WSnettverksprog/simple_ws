@@ -94,17 +94,22 @@ class WebSocketFrame():
         frames = []
         l = len(self.payload)
         frame_num = 0
-        while l > 0:
+        while l >= 0:
             finbit = 128 if (l <= self.max_frame_size) else 0
             opcode = self.opcode if (frame_num == 0) else WebSocketFrame.CONTINUOUS
             payload = (self.payload)[(self.max_frame_size * frame_num) : (min((self.max_frame_size),l))]
             frames.append(self.__make_frame(finbit, opcode, payload))
+            print("Frame: ", frame_num)
+            print("Opcode: ", opcode)
+            print("Finbit: ", finbit)
+            print("Frame length: ", l)
+            print("Max frame size: ", self.max_frame_size)
+            print("---")
             frame_num += 1
             l -= self.max_frame_size
         return frames
 
     def __make_frame(self, finbit, opcode, payload):
-        print(payload)
         frame = bytearray(struct.pack("B", opcode | finbit))
         l = len(payload)
         if l < 126:
@@ -205,7 +210,7 @@ class FrameReader():
 
 class WebSocket:
 
-    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=8192, max_connections=10):
+    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=30, max_connections=10):
         self.clients = []
         self.host = host
         self.port = port
@@ -298,7 +303,6 @@ class Client:
         else:
             msg_type = "text"
         """
-
         frame = WebSocketFrame(opcode=WebSocketFrame.TEXT, payload=msg, max_frame_size=self.server.max_frame_size)
         self.send_frames(frame.construct())
 
