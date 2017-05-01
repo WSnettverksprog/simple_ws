@@ -32,12 +32,15 @@ class RequestParser():
                     self.headers[line] = None
 
     def is_valid_request(self, header):
-        assert header["HTTP"].lower().index("get") > -1
-        assert header["Host"] is not None
-        assert header["Upgrade"].lower() == "websocket"
-        assert header["Connection"].lower() == "upgrade"
-        assert header["Sec-WebSocket-Key"] is not None
-        assert int(header["Sec-WebSocket-Version"]) == 13
+        try:
+            assert header["HTTP"].lower().index("get") > -1
+            assert header["Host"] is not None
+            assert header["Upgrade"].lower() == "websocket"
+            assert header["Connection"].lower() == "upgrade"
+            assert header["Sec-WebSocket-Key"] is not None
+            assert int(header["Sec-WebSocket-Version"]) == 13
+        except KeyError as e:
+            raise AssertionError(str(e.args)+" is missing from upgrade request")
         return True
 
     @staticmethod
@@ -356,14 +359,14 @@ class Client:
                     data = data.decode('utf-8')
                     req.parse_request(data)
                 except Exception as e:
-                    raise UnicodeDecodeError("Error when decoding upgrade request to unicode ( "+str(e)+" )")
+                    raise UnicodeDecodeError("Error when decoding upgrade request to unicode ( "+str(e)+" )") from None
 
                 try:
                     req.is_valid_request(req.headers)
                     self.upgrade(req.headers["Sec-WebSocket-Key"])
                 except AssertionError as a:
                     self.close()
-                    raise Exception("Upgrade request does not follow protocol ( "+str(a)+" )")
+                    raise Exception("Upgrade request does not follow protocol ( "+str(a)+" )") from None
 
             elif self.status == Client.OPEN:
                 try:
@@ -371,7 +374,7 @@ class Client:
                     self.__process_frame(opcode, msg)
                 except Exception as e:
                     self.__close_conn_req(1002, "Received invalid frame")
-                    raise Exception("Invalid frame received, closing connection (" + str(e) + ")")
+                    raise Exception("Invalid frame received, closing connection (" + str(e) + ")") from None
 
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
