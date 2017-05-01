@@ -67,8 +67,7 @@ class WebSocketFrame():
     def has_mask(self):
         return self.mask is not None
 
-    def __init__(self, opcode=TEXT, fin=True, payload="", mask=None, raw_data=None):
-        self.fin = fin
+    def __init__(self, opcode=TEXT, payload="", mask=None, raw_data=None, max_frame_size=8192):
         self.opcode = opcode
         if opcode is WebSocketFrame.TEXT and payload:
             self.payload = str.encode(payload)
@@ -77,6 +76,7 @@ class WebSocketFrame():
         self.mask = mask
         self.incomplete_message = False
         self.frame_size = 0
+        self.max_frame_size = max_frame_size
 
         # Parse message if raw_data isn't None
         if raw_data is not None:
@@ -91,12 +91,22 @@ class WebSocketFrame():
     """
 
     def construct(self):
+        frames = []
         l = len(self.payload)
-        if self.fin:
-            finbit = 128
-        else:
-            finbit = 0
-        frame = bytearray(struct.pack("B", self.opcode | finbit))
+        frame_num = 0
+        while l > 0:
+            finbit = 128 if (l <= self.max_frame_size) else 0
+            opcode = self.opcode if (frame_num == 0) else WebSocketFrame.CONTINUOUS
+            payload = (self.payload)[(self.max_frame_size * frame_num) : (min((self.max_frame_size),l))]
+            frames.append(self.__make_frame(finbit, opcode, payload))
+            frame_num += 1
+            l -= self.max_frame_size
+        return frames
+
+    def __make_frame(self, finbit, opcode, payload):
+        print(payload)
+        frame = bytearray(struct.pack("B", opcode | finbit))
+        l = len(payload)
         if l < 126:
             length = struct.pack("B", l)
         elif l < 65536:
@@ -107,7 +117,7 @@ class WebSocketFrame():
             length = struct.pack("!BQ", l_code, l)
 
         frame.extend(length)
-        frame.extend(self.payload)
+        frame.extend(payload)
         return frame
 
     def __unmask(self, bit_tuple):
@@ -193,10 +203,9 @@ class FrameReader():
         return -1, None
 
 
-
 class WebSocket:
 
-    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_connections=10):
+    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=8192, max_connections=10):
         self.clients = []
         self.host = host
         self.port = port
@@ -204,6 +213,7 @@ class WebSocket:
         self.ping = ping,
         self.ping_interval=ping_interval
         self.buffer_size = buffer_size
+        self.max_frame_size = max_frame_size
 
         self.server = asyncio.start_server(client_connected_cb=self.__client_connected, host=host, port=port,
                                            loop=loop)
@@ -242,11 +252,11 @@ class WebSocket:
         return None
 
     def on_ping(self, client):
-        #Runs when ping is sent
+        # Runs when ping is sent
         return None
 
     def on_pong(self,client):
-        #runs when pong is recieved
+        # Runs when pong is received
         return None
 
 
@@ -265,14 +275,18 @@ class Client:
         self._close_sent = False
         self.__close_received = False
         self.__frame_reader = FrameReader()
-        self.__pong_recieved = False
-        self.__last_frame_recieved = time.time()
+        self.__pong_received = False
+        self.__last_frame_received = time.time()
 
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
         # Create async task to send pings
         if self.server.ping:
             loop.create_task(self.send_ping())
+
+    def send_frames(self, frames):
+        for f in frames:
+            self.send_bytes(f)
 
     def send_bytes(self, data):
         self.writer.write(data)
@@ -285,8 +299,8 @@ class Client:
             msg_type = "text"
         """
 
-        frame = WebSocketFrame(opcode=WebSocketFrame.TEXT, fin=True, payload=msg)
-        self.send_bytes(frame.construct())
+        frame = WebSocketFrame(opcode=WebSocketFrame.TEXT, payload=msg, max_frame_size=self.server.max_frame_size)
+        self.send_frames(frame.construct())
 
     def send_string(self, data):
         self.send_bytes(str.encode(data))
@@ -311,23 +325,23 @@ class Client:
         self.server.disconnect(self)
 
     async def send_ping(self, ):
-        #Sends ping if more than 5 seconds since last message received
+        # Sends ping if more than 5 seconds since last message received
         while self.status != Client.CLOSED:
-                if (time.time()-self.__last_frame_recieved)*1000 < 5000:
+                if (time.time() - self.__last_frame_received) * 1000 < 5000:
                     await asyncio.sleep(self.server.ping_interval)
                     continue
-                self.__pong_recieved = False
+                self.__pong_received = False
                 frame = WebSocketFrame(opcode=WebSocketFrame.PING)
-                self.send_bytes(frame.construct())
+                self.send_frames(frame.construct())
                 await asyncio.sleep(self.server.ping_interval)
-                if not self.__pong_recieved:
+                if not self.__pong_received:
                     self.close()
 
 
 
     def send_pong(self):
         frame = WebSocketFrame(opcode=WebSocketFrame.PONG)
-        self.send_bytes(frame.construct())
+        self.send_frames(frame.construct())
 
     async def __wait_for_data(self):
         while self.status != Client.CLOSED:
@@ -363,7 +377,7 @@ class Client:
                 raise Exception("Recieved message from client who was not open or connecting")
 
     def __process_frame(self, opcode, message):
-        self.__last_frame_recieved = time.time()
+        self.__last_frame_received = time.time()
         if opcode <= WebSocketFrame.CONTINUOUS:
             return
         elif opcode == WebSocketFrame.TEXT:
@@ -379,7 +393,7 @@ class Client:
             self.send_pong()
             self.server.on_ping(self)
         elif opcode == WebSocketFrame.PONG:
-            self.__pong_recieved = True
+            self.__pong_received = True
             self.server.on_pong(self)
 
     # Call this class every time close frame is sent or recieved
@@ -396,8 +410,8 @@ class Client:
     #Call this class to respond to a close connection request
     def __close_conn_res(self):
         if not self._close_sent:
-            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE, fin=True, payload="")
-            self.send_bytes(frame.construct())
+            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE)
+            self.send_frames(frame.construct())
             self._close_sent = True
             self.close()
         else:
@@ -407,8 +421,8 @@ class Client:
     def __close_conn_req(self, status, reason):
         # Status and reason not implemented
         if not self._close_sent:
-            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE, fin=True, payload="")
-            self.send_bytes(frame.construct())
+            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE)
+            self.send_frames(frame.construct())
             self.__force_close(1)
 
 
