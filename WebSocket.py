@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import base64
 import struct
+import time
 loop = asyncio.get_event_loop()
 
 
@@ -81,7 +82,7 @@ class WebSocketFrame():
             finbit = 128
         else:
             finbit = 0
-        frame = struct.pack("B", self.opcode | finbit)
+        frame = bytearray(struct.pack("B", self.opcode | finbit))
         if l < 126:
             length = struct.pack("B", l)
         elif l < 65536:
@@ -91,8 +92,8 @@ class WebSocketFrame():
             l_code = 127
             length = struct.pack("!BQ", l_code, l)
 
-        frame += length
-        frame += self.payload
+        frame.extend(length)
+        frame.extend(self.payload)
         return frame
 
     def __unmask(self, bit_tuple):
@@ -144,8 +145,7 @@ class WebSocketFrame():
                 self.payload = self.__unmask(struct.unpack_from("B" * l, raw_data, offset=offset))
 
         except:
-            pass
-            #raise Exception("Frame does not follow protocol")
+            raise Exception("Frame does not follow protocol")
 
        # if self.opcode == WebSocketFrame.TEXT:
         #    self.payload = self.payload.decode('utf-8')
@@ -162,6 +162,7 @@ class FrameReader():
         if len(self.recieved_data) < self.frame_size:
             return -1, None
         frame = WebSocketFrame(raw_data=self.recieved_data)
+
         self.frame_size = frame.frame_size
         if frame.incomplete_message:
             return -1, None
@@ -173,6 +174,7 @@ class FrameReader():
             out = frame.opcode, self.current_message
             self.current_message = bytearray()
             self.recieved_data = bytearray()
+            self.frame_size = 0
             return out
         return -1, None
 
@@ -230,7 +232,7 @@ class Client:
     OPEN = 1
     CLOSED = 2
 
-    def __init__(self, server: WebSocket, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, buffer_size: int):
+    def __init__(self, server: WebSocket, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, buffer_size: int, ping_interval=5):
         self.server = server
         self.reader = reader
         self.writer = writer
@@ -241,6 +243,8 @@ class Client:
         self.__close_received = False
         self.__frame_reader = FrameReader()
         self.__pong_recieved = False
+        self.ping_interval = ping_interval
+        self.__last_frame_recieved = time.time()
 
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
@@ -284,13 +288,18 @@ class Client:
         self.writer.close()
         self.server.disconnect(self)
 
-    async def send_ping(self):
+    async def send_ping(self, ):
+        #Sends ping if more than 5 seconds since last message received
         while self.status != Client.CLOSED:
+            if (time.time()-self.__last_frame_recieved)*1000 < 5000:
+                await asyncio.sleep(self.ping_interval)
+                continue
             self.__pong_recieved = False
             frame = WebSocketFrame(opcode=WebSocketFrame.PING)
             self.send_bytes(frame.construct())
-            await asyncio.sleep(1)
+            await asyncio.sleep(self.ping_interval)
             if not self.__pong_recieved:
+                print("NO PONG?")
                 self.close()
 
 
@@ -311,6 +320,7 @@ class Client:
                     data = data.decode('utf-8')
                     req.parse_request(data)
                 except (AttributeError, UnicodeDecodeError):
+                    print("HER1")
                     break
 
                 try:
@@ -331,6 +341,7 @@ class Client:
                 raise Exception("Recieved message from client who was not open or connecting")
 
     def __process_frame(self, opcode, message):
+        self.__last_frame_recieved = time.time()
         if opcode <= WebSocketFrame.CONTINUOUS:
             return
         elif opcode == WebSocketFrame.TEXT:
@@ -344,6 +355,7 @@ class Client:
         elif opcode == WebSocketFrame.PING:
             self.send_pong()
         elif opcode == WebSocketFrame.PONG:
+            print("PONG RECIEVED")
             self.__pong_recieved = True
 
     # Call this class every time close frame is sent or recieved
