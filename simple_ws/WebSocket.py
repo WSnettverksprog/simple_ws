@@ -39,6 +39,7 @@ class RequestParser():
             assert header["Connection"].lower() == "upgrade"
             assert header["Sec-WebSocket-Key"] is not None
             assert int(header["Sec-WebSocket-Version"]) == 13
+            print(header)
         except KeyError as e:
             raise AssertionError(str(e.args)+" is missing from upgrade request")
         return True
