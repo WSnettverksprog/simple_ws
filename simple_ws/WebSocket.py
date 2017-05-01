@@ -210,7 +210,7 @@ class WebSocket:
         self.host = host
         self.port = port
 
-        self.ping = ping,
+        self.ping = ping
         self.ping_interval=ping_interval
         self.buffer_size = buffer_size
         self.max_frame_size = max_frame_size
