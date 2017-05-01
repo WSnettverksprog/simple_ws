@@ -6,7 +6,7 @@ import time
 loop = asyncio.get_event_loop()
 
 
-class WebRequestParser():
+class RequestParser():
     ws_const = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
     def __init__(self, req=None):
@@ -18,17 +18,17 @@ class WebRequestParser():
     def parse_request(self, req):
         data = req.split("\r\n\r\n")
         headers = data[0]
-        self.body = "\r\n\r\n".join(data[1:-1])
+        self.body = "\r\n\r\n".join(data[1:])
         for line in headers.split("\r\n"):
             try:
                 header_line = line.split(":")
-                self.headers[header_line[0].strip()] = header_line[1].strip()
+                self.headers[header_line[0].strip()] = ":".join(header_line[1:]).strip().lower()
             except:
                 self.headers[line] = None
 
     @staticmethod
     def create_update_header(key):
-        const = WebRequestParser.ws_const
+        const = RequestParser.ws_const
         m = hashlib.sha1()
         m.update(str.encode(key))
         m.update(str.encode(const))
@@ -181,13 +181,14 @@ class FrameReader():
 
 
 class WebSocket:
-    def __init__(self, host, port, buffer_size=4096, max_connections=10):
+
+    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_connections=10):
         self.clients = []
         self.host = host
         self.port = port
 
-        # Not currently used
-        self.max_connections = max_connections
+        self.ping = ping,
+        self.ping_interval=ping_interval
         self.buffer_size = buffer_size
 
         self.server = asyncio.start_server(client_connected_cb=self.__client_connected, host=host, port=port,
@@ -226,13 +227,21 @@ class WebSocket:
         # Override to handle closing of client
         return None
 
+    def on_ping(self, client):
+        #Runs when ping is sent
+        return None
+
+    def on_pong(self,client):
+        #runs when pong is recieved
+        return None
+
 
 class Client:
     CONNECTING = 0
     OPEN = 1
     CLOSED = 2
 
-    def __init__(self, server: WebSocket, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, buffer_size: int, ping_interval=5):
+    def __init__(self, server: WebSocket, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, buffer_size: int):
         self.server = server
         self.reader = reader
         self.writer = writer
@@ -243,13 +252,13 @@ class Client:
         self.__close_received = False
         self.__frame_reader = FrameReader()
         self.__pong_recieved = False
-        self.ping_interval = ping_interval
         self.__last_frame_recieved = time.time()
 
         # Create async task to handle client data
         loop.create_task(self.__wait_for_data())
         # Create async task to send pings
-        loop.create_task(self.send_ping())
+        if self.server.ping:
+            loop.create_task(self.send_ping())
 
     def send_bytes(self, data):
         self.writer.write(data)
@@ -274,11 +283,10 @@ class Client:
     def upgrade(self, key):
         if self.status == Client.OPEN:
             return
-        update_header = WebRequestParser.create_update_header(key)
+        update_header = RequestParser.create_update_header(key)
         self.send_string(update_header)
         self.status = Client.OPEN
-        if self.server.on_open:
-            self.server.on_open(self.server)
+        self.server.on_open(self)
 
     def close(self):
         if self.status == Client.CLOSED:
@@ -291,16 +299,16 @@ class Client:
     async def send_ping(self, ):
         #Sends ping if more than 5 seconds since last message received
         while self.status != Client.CLOSED:
-            if (time.time()-self.__last_frame_recieved)*1000 < 5000:
-                await asyncio.sleep(self.ping_interval)
-                continue
-            self.__pong_recieved = False
-            frame = WebSocketFrame(opcode=WebSocketFrame.PING)
-            self.send_bytes(frame.construct())
-            await asyncio.sleep(self.ping_interval)
-            if not self.__pong_recieved:
-                print("NO PONG?")
-                self.close()
+                if (time.time()-self.__last_frame_recieved)*1000 < 5000:
+                    await asyncio.sleep(self.server.ping_interval)
+                    continue
+                self.__pong_recieved = False
+                frame = WebSocketFrame(opcode=WebSocketFrame.PING)
+                self.send_bytes(frame.construct())
+                await asyncio.sleep(self.server.ping_interval)
+                if not self.__pong_recieved:
+                    self.close()
+
 
 
     def send_pong(self):
@@ -315,7 +323,7 @@ class Client:
                 return
 
             if self.status == Client.CONNECTING:
-                req = WebRequestParser()
+                req = RequestParser()
                 try:
                     data = data.decode('utf-8')
                     req.parse_request(data)
@@ -352,11 +360,13 @@ class Client:
         elif opcode == WebSocketFrame.CLOSE:
             self.__close_received = True
             self.__close_conn_res()
+            self.server.on_close(self)
         elif opcode == WebSocketFrame.PING:
             self.send_pong()
+            self.server.on_ping(self)
         elif opcode == WebSocketFrame.PONG:
-            print("PONG RECIEVED")
             self.__pong_recieved = True
+            self.server.on_pong(self)
 
     # Call this class every time close frame is sent or recieved
     # Checks if client has requested closing, if so sends a closing frame and closes connection
@@ -388,20 +398,3 @@ class Client:
             self.__force_close(1)
 
 
-class WSHandler(WebSocket):
-    def on_message(self, msg, client):
-        for c in self.clients:
-            if c.status == c.is_open():
-                c.write_message(msg)
-
-    def on_open(self, client):
-        print("Client connected!")
-
-    def on_close(self, client):
-        print("Client left...")
-
-
-host = ''
-port = 8080
-
-ws = WSHandler(host, port)
