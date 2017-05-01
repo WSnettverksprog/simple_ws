@@ -337,26 +337,3 @@ host = '0.0.0.0'
 port = 8080
 
 ws = WSHandler(host, port)
-
-""""
-Interface example:
-
-class WS(WebSocket):
-    def on_open(self, client):
-        print("Client connected:"+client)
-
-    def on_message(self, message, client):
-        for c in self.clients:
-            if c.status is WebSocket.OPEN and c is not client:
-                c.send("Message recieved: "+message+"\nFrom client"+client)
-
-    def on_close(self, client):
-        self.send(WebSocket.OTHER, "We lost a client: "+client)
-
-    def on_message(clients, msg):
-        for client in clients:
-            client.sendString("Vi mottok meldingen: " + msg)
-
-ws = WS(host, port)
-
-"""
