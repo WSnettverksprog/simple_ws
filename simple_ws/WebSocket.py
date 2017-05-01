@@ -100,8 +100,6 @@ class WebSocketFrame():
         frame_num = 0
         while l >= 0:
             finbit = 128 if (l <= self.max_frame_size) else 0
-            print(self.)
-            print(frame_num)
             opcode = self.opcode if (frame_num is 0) else WebSocketFrame.CONTINUOUS
             payload = (self.payload)[(self.max_frame_size * frame_num) : (min((self.max_frame_size),l))]
             frames.append(self.__make_frame(finbit, opcode, payload))
@@ -196,14 +194,17 @@ class FrameReader():
         self.recieved_data.extend(data)
         if len(self.recieved_data) < self.frame_size:
             return -1, None
-        frame = WebSocketFrame(raw_data=self.recieved_data)
 
+        frame = WebSocketFrame(raw_data=self.recieved_data)
         self.frame_size = frame.frame_size
         if frame.incomplete_message:
             return -1, None
+        else:
+            self.recieved_data = bytearray()
 
         if frame.opcode is not WebSocketFrame.CONTINUOUS:
             self.opcode = frame.opcode
+
         self.current_message.extend(frame.payload)
         if frame.fin:
             out = frame.opcode, self.current_message
