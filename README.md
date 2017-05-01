@@ -8,7 +8,7 @@ To test the library, open two command windows and cd into python-WS directory
 - Open localhost:8000 in a browser
 
 ## TODO
-1. Implement continous frames
+1. ~Implement continous frames~
 2. Write tests
 3. Extensions (compression etc.)
 4. ~Framework interface~
