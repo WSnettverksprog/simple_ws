@@ -2,7 +2,7 @@ import unittest
 from simple_ws import RequestParser
 
 
-class FrameReaderTestMethods(unittest.TestCase):
+class RequestParserTestMethods(unittest.TestCase):
     def test_valid_request(self):
         rp = RequestParser()
         input_head = "GET / HTTP/1.1\r\n" \
