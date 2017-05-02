@@ -146,3 +146,11 @@ client.close(1002, "Pong not recieved")
 10. Add more configurability/remove hardcoded constants
 11. Implement connection limit
 
+## External sources
+* https://tools.ietf.org/html/rfc6455
+* https://tools.ietf.org/html/rfc7692
+* https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers
+* https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
+* https://github.com/tornadoweb/tornado
+* https://docs.python.org/3/library/asyncio.html
+* 
