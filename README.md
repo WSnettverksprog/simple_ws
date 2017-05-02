@@ -57,21 +57,35 @@ ws = WSHandler(host, port)
 Called when the server opens a connection to a new client (client).
 ```python
 def on_open(self, client):
-    # Code here executes when opening a connection
+    # Executes when opening a connection
 ```
 
 #### on_close(self, client)
 Called when the server closes a connection to a client (client).
 ```python
 def on_close(self, client):
-    # Code here executes when closing a connection
+    # Executes when closing a connection
 ```
 
 #### on_message(self, msg, client)
 Called when the server has received a message (msg) from a client (client). The message can be in either binary or text format.
 ```python
 def on_message(self, msg, client):
-    # Code here executes when server recieves a messages from client
+    # Executes when server recieves a messages from client
+```
+
+#### on_ping(self, client)
+Called when the server sends a ping to a client (client).
+```python
+def on_ping(self, client):
+    # Executes when ping is sent to a client
+```
+
+#### on_pong(self, client)
+Called when the server receives a pong from a client (client).
+```python
+def on_pong(self, client):
+    # Executes when pong is received from a client
 ```
 
 ### Client
