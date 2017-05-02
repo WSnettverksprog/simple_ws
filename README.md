@@ -16,6 +16,10 @@ To test the library, open two command windows and cd into the python-WS director
 5. ~Ping, Pong and Closing~ (Extend ping and pong to support data)
 6. Error handling
 7. Clean up classes
+8. Implement close status and reason
+9. Implement all compression configurations
+10. Add more configurability/remove hardcoded constants
+11. Implement connection limit
 
 ## Example code
 
@@ -25,8 +29,7 @@ import WebSocket from simple_ws
 class WSHandler(WebSocket):
     def on_message(self, msg, client):
         for c in self.clients:
-            if c.status == c.is_open():
-                c.write_message(msg)
+              c.write_message(msg)
 
     def on_open(self, client):
         print("Client connected!")
