@@ -24,12 +24,27 @@ class RequestParser():
                 header_line = line.split(":")
                 if(len(header_line) < 2):
                     raise Exception
-                self.headers[header_line[0].strip()] = ":".join(header_line[1:]).strip()
+                key = header_line[0].strip()
+                if key == "Sec-WebSocket-Extensions":
+                    l = header_line[1].split(";")
+                    extensions = list(map(lambda line: line.strip().lower(), l))
+                    self.headers[key] = extensions
+                self.headers[key] = ":".join(header_line[1:]).strip()
+
             except:
                 if line.index("GET") > -1:
                     self.headers["HTTP"] = line.lower()
                 else:
                     self.headers[line] = None
+
+    def does_support_compression(self):
+        try:
+            extensions = self.headers["Sec-WebSocket-Extensions"]
+            if extensions.index("permessage-deflate") > -1:
+                return True
+        except KeyError:
+            pass
+        return False
 
     def is_valid_request(self, header):
         try:
@@ -43,8 +58,9 @@ class RequestParser():
             raise AssertionError(str(e.args)+" is missing from upgrade request")
         return True
 
+
     @staticmethod
-    def create_update_header(key):
+    def create_update_header(key, compression=False):
         const = RequestParser.ws_const
         m = hashlib.sha1()
         m.update(str.encode(key))
@@ -54,8 +70,26 @@ class RequestParser():
         header = "HTTP/1.1 101 Switching Protocols\r\n"
         header += "Upgrade: websocket\r\n"
         header += "Connection: Upgrade\r\n"
+        if compression:
+            header += "Sec-WebSocket-Extensions: permessage-deflate\r\n"
         header += "Sec-WebSocket-Accept: " + key.decode("utf-8") + "\r\n\r\n"
+        print(header)
         return header
+
+
+class Decompressor:
+    def __init__(self):
+        pass
+
+    def decompress(self, message):
+        return message
+
+class Compressor:
+    def __init__(self):
+        pass
+
+    def compress(self, message):
+        return message
 
 
 class WebSocketFrame():
@@ -139,6 +173,7 @@ class WebSocketFrame():
         head, payload_len = struct.unpack_from("BB", raw_data)
         offset += 2
         self.fin = head & 0x80 == 0x80
+        self.compressed = head & 0x70 == 0x40
         self.opcode = head & 0xF
         has_mask = payload_len & 0x80 == 0x80
         if not has_mask:
@@ -185,8 +220,10 @@ class FrameReader():
         self.recieved_data = bytearray()
         self.opcode = -1
         self.frame_size = 0
+        self.compressed = False
+        self.decompresser = Decompressor()
 
-    def read_message(self, data):
+    def read_message(self, data, compression=False):
         self.recieved_data.extend(data)
         if len(self.recieved_data) < self.frame_size:
             return -1, None
@@ -200,9 +237,12 @@ class FrameReader():
 
         if frame.opcode is not WebSocketFrame.CONTINUOUS:
             self.opcode = frame.opcode
+            self.compressed = frame.compressed
 
         self.current_message.extend(frame.payload)
         if frame.fin:
+            if compression and self.compressed:
+                self.current_message = self.decompressor.decompress(self.current_message)
             out = frame.opcode, self.current_message
             self.current_message = bytearray()
             self.recieved_data = bytearray()
@@ -213,7 +253,8 @@ class FrameReader():
 
 class WebSocket:
 
-    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=30, max_connections=10):
+    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=30,
+                 max_connections=10, compression=True):
         self.clients = []
         self.host = host
         self.port = port
@@ -222,6 +263,7 @@ class WebSocket:
         self.ping_interval=ping_interval
         self.buffer_size = buffer_size
         self.max_frame_size = max_frame_size
+        self.compression = compression
 
         self.server = asyncio.start_server(client_connected_cb=self.__client_connected, host=host, port=port,
                                            loop=loop)
@@ -315,10 +357,10 @@ class Client:
     def is_open(self):
         return Client.OPEN == self.status
 
-    def upgrade(self, key):
+    def upgrade(self, key, compression=False):
         if self.status == Client.OPEN:
             return
-        update_header = RequestParser.create_update_header(key)
+        update_header = RequestParser.create_update_header(key, compression=compression)
         self.send_string(update_header)
         self.status = Client.OPEN
         self.server.on_open(self)
@@ -367,7 +409,12 @@ class Client:
 
                 try:
                     req.is_valid_request(req.headers)
-                    self.upgrade(req.headers["Sec-WebSocket-Key"])
+                    print(req.does_support_compression())
+                    if self.server.compression and req.does_support_compression():
+                        self.upgrade(req.headers["Sec-WebSocket-Key"], compression=True)
+                    else:
+                        self.upgrade(req.headers["Sec-WebSocket-Key"])
+
                 except AssertionError as a:
                     self.close()
                     raise Exception("Upgrade request does not follow protocol ( "+str(a)+" )") from None
