@@ -24,12 +24,13 @@ To test the library, open two command windows and cd into the python-WS director
 ## Example code
 
 ```javascript
-import WebSocket from simple_ws
+from simple_ws import WebSocket
+
 
 class WSHandler(WebSocket):
     def on_message(self, msg, client):
-        for c in self.clients:
-              c.write_message(msg)
+        for client in self.clients:
+            client.write_message(msg)
 
     def on_open(self, client):
         print("Client connected!")
@@ -48,13 +49,35 @@ host = ''
 port = 8080
 
 ws = WSHandler(host, port)
-
 ```
 
 ## Functions
-### on_message(self, msg, client)
+### WebSocket
+#### on_message(self, msg, client)
 Called when a the server has received a message (msg) from a client (client). The message can be in either binary or text format.
 ```python
 def on_message(self, msg, client):
     # Fires when server recieves a messages from client
+```
+
+### Client
+#### write_message(self, msg, binary=False)
+Sends a message payload (msg) to the client. If binary=True, the message gets sent as binary data.
+
+```python
+# Text message
+client.write_message("Hello world")
+
+# Binary message
+client.write_message(b"0x00", binary=True)
+```
+
+#### is_open(self)
+Returns True if the connection has gone through handshake, and is currently open.
+
+#### close(self, status, reason)
+Sends a close frame to the client, and closes the connection after either a response, or after 1 second. Status and reason are not currently implemented. Will ultimately result in __WebSocket.on_close__ being fired.
+
+```python
+client.close(1002, "Pong not recieved")
 ```
