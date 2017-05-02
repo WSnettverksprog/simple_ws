@@ -112,6 +112,7 @@ class WebSocketFrame():
 
     def __init__(self, opcode=TEXT, payload="", mask=None, raw_data=None, max_frame_size=8192, compression=True,
                  ignore_mask=False):
+
         self.opcode = opcode
         if opcode is WebSocketFrame.TEXT and payload:
             self.payload = str.encode(payload)
@@ -414,7 +415,7 @@ class Client:
                 self.__close_conn_req(1002, "Pong not recieved")
 
     def send_pong(self):
-        frame = WebSocketFrame(opcode=WebSocketFrame.PONG)
+        frame = WebSocketFrame(opcode=WebSocketFrame.PONG, max_frame_size=self.server.max_frame_size)
         self.send_frames(frame.construct())
 
     async def __wait_for_data(self):
@@ -490,7 +491,7 @@ class Client:
     # Call this class to respond to a close connection request
     def __close_conn_res(self):
         if not self._close_sent:
-            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE)
+            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE, max_frame_size=self.server.max_frame_size)
             self.send_frames(frame.construct())
             self._close_sent = True
             self.close()
@@ -501,6 +502,6 @@ class Client:
     def __close_conn_req(self, status, reason):
         # Status and reason not implemented
         if not self._close_sent:
-            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE)
+            frame = WebSocketFrame(opcode=WebSocketFrame.CLOSE, max_frame_size=self.server.max_frame_size)
             self.send_frames(frame.construct())
             self.__force_close(1)
