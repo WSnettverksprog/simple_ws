@@ -51,3 +51,7 @@ ws = WSHandler(host, port)
 ## Functions
 ### on_message(self, msg, client)
 Called when a the server has received a message (msg) from a client (client). The message can be in either binary or text format.
+```python
+def on_message(self, msg, client):
+    # Fires when server recieves a messages from client
+```
