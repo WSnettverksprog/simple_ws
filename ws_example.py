@@ -17,4 +17,4 @@ class WSHandler(WebSocket):
 host = ''
 port = 8080
 
-ws = WSHandler(host, port)
+ws = WSHandler(host, port, compression=True)
