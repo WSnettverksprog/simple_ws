@@ -1,6 +1,9 @@
 # python-WS
 Simple websocket implementation in python
 
+Available through pypi: 
+`pip install simple_ws`
+
 ## Running the example code
 
 To test the library, clone repo, open two command windows and cd into the python-WS directory
