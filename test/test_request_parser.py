@@ -15,7 +15,7 @@ class RequestParserTestMethods(unittest.TestCase):
         rp.parse_request(input_head)
         print(rp.headers)
         self.assertEqual(rp.headers["Host"], "localhost:8080", "Asserting correct host")
-        self.assertEqual(rp.headers["Connection"], "upgrade", "Asserting correct connection")
+        self.assertEqual(rp.headers["Connection"], "Upgrade", "Asserting correct connection")
         self.assertEqual(rp.headers["Pragma"], "no-cache", "Asserting correct pragma")
         self.assertEqual(rp.headers["Cache-Control"], "no-cache", "Asserting correct cache-control")
         self.assertEqual(rp.headers["Upgrade"], "websocket", "Asserting correct upgrade")
