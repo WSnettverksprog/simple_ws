@@ -18,7 +18,7 @@ To test the library, open two command windows and cd into python-WS directory
 
 ### Example
 
-```
+```javascript
 import WebSocket from simple_ws
 
 class WSHandler(WebSocket):
