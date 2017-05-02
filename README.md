@@ -1,11 +1,12 @@
 # python-WS
 Simple websocket implementation in python
 
-## Test the library
-To test the library, open two command windows and cd into python-WS directory
+## Running the example code
+To test the library, open two command windows and cd into the python-WS directory
 - Run `python -m http.server 8000`
 - Run `python ws_example.py` in the other window
-- Open localhost:8000 in a browser
+- Open http://localhost:8000 in a browser
+
 
 ## TODO
 1. ~Implement continous frames~
@@ -16,7 +17,7 @@ To test the library, open two command windows and cd into python-WS directory
 6. Error handling
 7. Clean up classes
 
-### Example
+## Example code
 
 ```javascript
 import WebSocket from simple_ws
@@ -32,10 +33,10 @@ class WSHandler(WebSocket):
 
     def on_close(self, client):
         print("Client left...")
-        
+
     def on_ping(self, client):
         print("Recieved ping!")
-    
+
     def on_pong(self, client):
         print("Recieved pong!")
 
@@ -46,3 +47,7 @@ port = 8080
 ws = WSHandler(host, port)
 
 ```
+
+## Functions
+### on_message(self, msg, client)
+Called when a the server has received a message (msg) from a client (client). The message can be in either binary or text format.

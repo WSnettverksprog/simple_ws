@@ -1,4 +1,4 @@
-from simple_ws import WebSocket
+from ..simple_ws import WebSocket
 
 
 class WSHandler(WebSocket):
