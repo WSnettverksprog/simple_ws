@@ -1,9 +1,10 @@
 from simple_ws import WebSocket
 
+
 class WSHandler(WebSocket):
     def on_message(self, msg, client):
         for client in self.clients:
-              client.write_message(msg)
+            client.write_message(msg)
 
     def on_open(self, client):
         print("Client connected!")

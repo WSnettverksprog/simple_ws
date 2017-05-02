@@ -87,7 +87,6 @@ class Decompressor:
         return message
 
 
-
 class Compressor:
     def __init__(self):
         self.compressor = zlib.compressobj()
