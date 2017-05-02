@@ -39,35 +39,34 @@ port = 8080
 ws = WSHandler(host, port)
 ```
 
-#### WebSocket parameters
+## WebSocket parameters
 ```host```
-String: Required
-Host domain
+* String
+* Host domain
 
 ```port```
-Integer: Required
-Port number for websocket
+* Integer
+* Port number for websocket
 
-```ping```
-Boolean: True
-Whether server should ping client in a given intervall, will close connection if pong is not received
+```ping = True```
+* Boolean
+* Whether server should ping client in a given intervall, will close connection if pong is not received
 
-```ping_intervall```
-Integer: 5
-How often should server ping client in seconds, has no effect if ping is set to false
+```ping_intervall = 5```
+* Integer
+* How often should server ping client in seconds, has no effect if ping is set to false
 
-```compression```
-Boolean: True
-Whether messages should be compressed
+```compression = True```
+* Boolean
+* Whether messages should be compressed
 
+```max_frame_size = 8192```
+* Integer
+* Max size for a single websocket frame. If payload exceeds limit, the message will be split in several parts
 
-```max_frame_size```
-Integer: 8192
-Max size for a single websocket frame. If payload exceeds limit, the message will be split in several parts.
-
-```buffer_size```
-Integer: 4096
-Max network buffer size
+```buffer_size = 4096```
+* Integer
+* Max network buffer size
 
 
 
