@@ -54,10 +54,17 @@ ws = WSHandler(host, port)
 ## Functions
 ### WebSocket
 #### on_open(self, client)
-Called when the server opens a connection to a new client (client)
+Called when the server opens a connection to a new client (client).
 ```python
 def on_open(self, client):
-    # Code here executes when a connection is opened
+    # Code here executes when opening a connection
+```
+
+#### on_close(self, client)
+Called when the server closes a connection to a client (client).
+```python
+def on_close(self, client):
+    # Code here executes when closing a connection
 ```
 
 #### on_message(self, msg, client)
