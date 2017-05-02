@@ -19,7 +19,7 @@ from simple_ws import WebSocket
 
 
 class WSHandler(WebSocket):
-    def on_message(self, msg, client):
+    def on_message(self, msg, target_client):
         for client in self.clients:
             if client.is_open():
                 client.write_message(msg)
