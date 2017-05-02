@@ -34,7 +34,7 @@ class RequestParser:
                 self.headers[key] = ":".join(header_line[1:]).strip()
 
             except:
-                if line.index("GET") > -1:
+                if "GET" in line:
                     self.headers["HTTP"] = line.lower()
                 else:
                     self.headers[line] = None
@@ -42,7 +42,7 @@ class RequestParser:
     def does_support_compression(self):
         try:
             extensions = self.headers["Sec-WebSocket-Extensions"]
-            if extensions.index("permessage-deflate") > -1:
+            if "permessage-deflate" in extensions:
                 return True
         except KeyError:
             pass
@@ -50,7 +50,7 @@ class RequestParser:
 
     def is_valid_request(self, header):
         try:
-            assert header["HTTP"].lower().index("get") > -1
+            assert "get" in header["HTTP"].lower()
             assert header["Host"] is not None
             assert header["Upgrade"].lower() == "websocket"
             assert header["Connection"].lower() == "upgrade"
