@@ -2,28 +2,16 @@
 Simple websocket implementation in python
 
 ## Running the example code
-To test the library, open two command windows and cd into the python-WS directory
+
+To test the library, clone repo, open two command windows and cd into the python-WS directory
+
 - Run `python -m http.server 8000`
 - Run `python ws_example.py` in the other window
 - Open http://localhost:8000 in a browser
 
-
-## TODO
-1. ~Implement continous frames~
-2. Write tests
-3. ~Extensions (compression etc.)~
-4. ~Framework interface~
-5. ~Ping, Pong and Closing~ (Extend ping and pong to support data)
-6. Error handling
-7. Clean up classes
-8. Implement close status and reason
-9. Implement all compression configurations
-10. Add more configurability/remove hardcoded constants
-11. Implement connection limit
-
 ## Example code
 
-```javascript
+```python
 from simple_ws import WebSocket
 
 
@@ -50,6 +38,38 @@ port = 8080
 
 ws = WSHandler(host, port)
 ```
+
+#### WebSocket parameters
+```host```
+String: Required
+Host domain
+
+```port```
+Integer: Required
+Port number for websocket
+
+```ping```
+Boolean: True
+Whether server should ping client in a given intervall, will close connection if pong is not received
+
+```ping_intervall```
+Integer: 5
+How often should server ping client in seconds, has no effect if ping is set to false
+
+```compression```
+Boolean: True
+Whether messages should be compressed
+
+
+```max_frame_size```
+Integer: 8192
+Max size for a single websocket frame. If payload exceeds limit, the message will be split in several parts.
+
+```buffer_size```
+Integer: 4096
+Max network buffer size
+
+
 
 ## Functions
 ### WebSocket
@@ -109,3 +129,18 @@ Sends a close frame to the client, and closes the connection after either a resp
 ```python
 client.close(1002, "Pong not recieved")
 ```
+
+
+## TODO
+1. ~Implement continous frames~
+2. Write tests
+3. ~Extensions (compression etc.)~
+4. ~Framework interface~
+5. ~Ping, Pong and Closing~ (Extend ping and pong to support data)
+6. Error handling
+7. Clean up classes
+8. Implement close status and reason
+9. Implement all compression configurations
+10. Add more configurability/remove hardcoded constants
+11. Implement connection limit
+
