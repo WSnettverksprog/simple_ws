@@ -74,22 +74,28 @@ class RequestParser():
         if compression:
             header += "Sec-WebSocket-Extensions: permessage-deflate\r\n"
         header += "Sec-WebSocket-Accept: " + key.decode("utf-8") + "\r\n\r\n"
-        print(header)
         return header
 
 
 class Decompressor:
-    @staticmethod
-    def decompress(message):
-        #message += bytearray([0x00, 0x00, 0xff, 0xff])
-        message = zlib.decompress(message, wbits=-zlib.MAX_WBITS)
+    def __init__(self):
+        self.decompressor = zlib.decompressobj(-zlib.MAX_WBITS)
+
+    def decompress(self, message):
+        message.extend(b'\x00\x00\xff\xff')
+        message = self.decompressor.decompress(message)
         return message
+
 
 
 class Compressor:
-    @staticmethod
-    def compress(message):
-        return message
+    def __init__(self):
+        self.compressor = zlib.compressobj()
+
+    def compress(self, message):
+        self.compressor.compress(message)
+        message = self.compressor.flush(zlib.Z_SYNC_FLUSH)
+        return message[:-4]
 
 
 class WebSocketFrame():
@@ -104,7 +110,7 @@ class WebSocketFrame():
     def has_mask(self):
         return self.mask is not None
 
-    def __init__(self, opcode=TEXT, payload="", mask=None, raw_data=None, max_frame_size=8192, compression=False,
+    def __init__(self, opcode=TEXT, payload="", mask=None, raw_data=None, max_frame_size=8192, compression=True,
                  ignore_mask=False):
         self.opcode = opcode
         if opcode is WebSocketFrame.TEXT and payload:
@@ -116,6 +122,7 @@ class WebSocketFrame():
         self.frame_size = 0
         self.max_frame_size = max_frame_size
         self.__compression = compression
+        self.compressor = Compressor()
         self.__ignore_mask = ignore_mask  # Used for unit test
 
         # Parse message if raw_data isn't None
@@ -132,8 +139,8 @@ class WebSocketFrame():
 
     def construct(self):
         frames = []
-        if self.__compression:
-            self.payload = Compressor.compress(self.payload)
+        if self.__compression and self.payload:
+            self.payload = self.compressor.compress(self.payload)
 
         l = len(self.payload)
         frame_num = 0
@@ -151,7 +158,7 @@ class WebSocketFrame():
 
     def __make_frame(self, finbit, opcode, payload):
         rsv1_compress = 0x0
-        if self.__compression:
+        if self.__compression and opcode is 0x0 or opcode is 0x1 or opcode is 0x2:
             rsv1_compress = 0x40
 
         frame = bytearray(struct.pack("B", opcode | finbit | rsv1_compress))
@@ -263,7 +270,7 @@ class FrameReader():
         self.current_message.extend(frame.payload)
         if frame.fin:
             if compression and self.compressed:
-                self.current_message = Decompressor.decompress(self.current_message)
+                self.current_message = self.decompresser.decompress(self.current_message)
             out = frame.opcode, self.current_message
             self.current_message = bytearray()
             self.recieved_data = bytearray()
@@ -273,7 +280,7 @@ class FrameReader():
 
 
 class WebSocket:
-    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=30,
+    def __init__(self, host, port, ping=True, ping_interval=5, buffer_size=4096, max_frame_size=8192,
                  max_connections=10, compression=True):
         self.clients = []
         self.host = host
@@ -428,7 +435,6 @@ class Client:
 
                 try:
                     req.is_valid_request(req.headers)
-                    print(req.does_support_compression())
                     if self.server.compression and req.does_support_compression():
                         self.__compression = True
                         self.upgrade(req.headers["Sec-WebSocket-Key"], compression=True)
@@ -445,7 +451,7 @@ class Client:
                     self.__process_frame(opcode, msg)
                 except Exception as e:
                     self.__close_conn_req(1002, "Received invalid frame")
-                    raise Exception("Invalid frame received, closing connection (" + str(e) + ")") from None
+                    raise Exception("Invalid frame received, closing connection (" + str(e) + ")")
 
             else:
                 raise Exception("Recieved message from client who was not open or connecting")
