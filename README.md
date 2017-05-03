@@ -4,18 +4,19 @@ Simple websocket implementation in python
 [![PyPI version](https://badge.fury.io/py/simple_ws.svg)](https://badge.fury.io/py/simple_ws)
 [![Python version](https://img.shields.io/badge/python-3.6.1-blue.svg)](https://www.python.org/downloads/release/python-361/)
 
-Available through pypi: 
-`pip install simple_ws`
+## Install 
+```
+$ pip install simple_ws
+```
 
-## Running the example code
-
+## Usage
 To test the library, clone repo, open two command windows and cd into the python-WS directory
 
 - Run `python -m http.server 8000`
 - Run `python ws_example.py` in the other window
 - Open http://localhost:8000 in a browser
 
-## Example code
+### Example
 
 ```python
 from simple_ws import WebSocket
