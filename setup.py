@@ -3,7 +3,7 @@ from distutils.core import setup
 try:
    import pypandoc
    description = pypandoc.convert('README.md', 'rst')
-   description = long_description.replace("\r","")
+   description = description.replace("\r","")
 except (IOError, ImportError):
    description = 'Simple websocket implementation in python using asyncio'
     
