@@ -10,7 +10,7 @@ except (IOError, ImportError):
 setup(
   name = 'simple_ws',
   packages = ['simple_ws'], 
-  version = '0.2.1',
+  version = '0.2.2',
   description: 'Simple websocket implementation in python using asyncio',
   long_description = description,
   author = 'Ole Kristian Aune, Even Dalen, Audun Wigum Arbo',
