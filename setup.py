@@ -9,7 +9,7 @@ except (IOError, ImportError):
 setup(
   name = 'simple_ws',
   packages = ['simple_ws'], 
-  version = '0.2',
+  version = '0.2.1',
   description = description,
   author = 'Ole Kristian Aune, Even Dalen, Audun Wigum Arbo',
   author_email = 'even.dalen@live.no',
