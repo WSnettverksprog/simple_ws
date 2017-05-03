@@ -1,4 +1,4 @@
-# python-WS
+# simple_ws
 Simple websocket implementation in python
 
 Available through pypi: 
