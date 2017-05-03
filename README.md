@@ -1,6 +1,9 @@
 # simple_ws
 Simple websocket implementation in python
 
+[![PyPI version](https://badge.fury.io/py/simple_ws.svg)](https://badge.fury.io/py/simple_ws)
+[![Python version](https://img.shields.io/badge/python-3.6.1-blue.svg)](https://www.python.org/downloads/release/python-361/)
+
 Available through pypi: 
 `pip install simple_ws`
 
