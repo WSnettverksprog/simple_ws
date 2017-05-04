@@ -141,3 +141,6 @@ client.close(1002, "Pong not recieved")
 
 ## License
 [MIT License](LICENSE)
+
+## Authors
+[Even Dalen](https://github.com/evedal), [Audun Wigum Arbo](https://github.com/AudunWA) and [Ole Kristian Aune](https://github.com/okaune)
