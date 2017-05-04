@@ -21,7 +21,6 @@ To test the library, clone repo, open two command windows and cd into the python
 ```python
 from simple_ws import WebSocket
 
-
 class WSHandler(WebSocket):
     def on_message(self, msg, target_client):
         for client in self.clients:
@@ -39,7 +38,6 @@ class WSHandler(WebSocket):
 
     def on_pong(self, client):
         print("Recieved pong!")
-
 
 host = ''
 port = 8080
@@ -112,24 +110,19 @@ Returns True if the connection has gone through handshake, and is currently open
 
 #### close(self, status, reason)
 Sends a close frame to the client, and closes the connection after either a response, or after 1 second. Status and reason are not currently implemented. Will ultimately result in __WebSocket.on_close__ being fired.
-
 ```python
 client.close(1002, "Pong not recieved")
 ```
 
-
 ## TODO
-1. ~~Implement continous frames~~
-2. Write tests
-3. ~~Extensions (compression etc.)~~
-4. ~~Framework interface~~
-5. ~~Ping, Pong and Closing~~ (Extend ping and pong to support data)
-6. Error handling
-7. Clean up classes
-8. Implement close status and reason
-9. Implement all compression configurations
-10. Add more configurability/remove hardcoded constants
-11. Implement connection limit
+1. Write more tests
+2. Add support for payload in ping and pong frames
+3. Error handling
+4. Clean up classes
+5. Implement close status and reason
+6. Implement all compression configurations
+7. Add more configurability/remove hardcoded constants
+8. Implement connection limit
 
 ## External sources
 * https://tools.ietf.org/html/rfc6455
