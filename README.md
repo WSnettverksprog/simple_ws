@@ -138,3 +138,6 @@ client.close(1002, "Pong not recieved")
 * https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
 * https://github.com/tornadoweb/tornado
 * https://docs.python.org/3/library/asyncio.html
+
+## License
+[MIT License](LICENSE)
