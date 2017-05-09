@@ -1,22 +1,25 @@
 # simple_ws
 Simple websocket implementation in python
 
-Available through pypi: 
-`pip install simple_ws`
+[![PyPI version](https://badge.fury.io/py/simple_ws.svg)](https://badge.fury.io/py/simple_ws)
+[![Python version](https://img.shields.io/badge/python-3.6.1-blue.svg)](https://www.python.org/downloads/release/python-361/)
 
-## Running the example code
+## Install 
+```
+$ pip install simple_ws
+```
 
+## Usage
 To test the library, clone repo, open two command windows and cd into the python-WS directory
 
 - Run `python -m http.server 8000`
 - Run `python ws_example.py` in the other window
 - Open http://localhost:8000 in a browser
 
-## Example code
+### Example
 
 ```python
 from simple_ws import WebSocket
-
 
 class WSHandler(WebSocket):
     def on_message(self, msg, target_client):
@@ -36,7 +39,6 @@ class WSHandler(WebSocket):
     def on_pong(self, client):
         print("Recieved pong!")
 
-
 host = ''
 port = 8080
 
@@ -44,35 +46,15 @@ ws = WSHandler(host, port)
 ```
 
 ## WebSocket parameters
-```host```
-* String
-* Host domain
-
-```port```
-* Integer
-* Port number for websocket
-
-```ping = True```
-* Boolean
-* Whether server should ping client in a given intervall, will close connection if pong is not received
-
-```ping_intervall = 5```
-* Integer
-* How often should server ping client in seconds, has no effect if ping is set to false
-
-```compression = True```
-* Boolean
-* Whether messages should be compressed
-
-```max_frame_size = 8192```
-* Integer
-* Max size for a single websocket frame. If payload exceeds limit, the message will be split in several parts
-
-```buffer_size = 4096```
-* Integer
-* Max network buffer size
-
-
+|parameter|type|default|description|
+|---------|---------|---------|---------|
+|```host```|String||Host domain|
+|```port```|Integer||Port number for websocket|
+|```ping```|Boolean|True|Whether server should ping client in a given intervall, will close connection if pong is not received|
+|```ping_intervall```|Integer|5|How often should server ping client in seconds, has no effect if ping is set to false|
+|```compression```|Boolean|True|Whether messages should be compressed|
+|```max_frame_size```|Integer|8192|Max size for a single websocket frame. If payload exceeds limit, the message will be split in several parts|
+|```buffer_size```|Integer|4096|Max network buffer size|
 
 ## Functions
 ### WebSocket
@@ -128,24 +110,19 @@ Returns True if the connection has gone through handshake, and is currently open
 
 #### close(self, status, reason)
 Sends a close frame to the client, and closes the connection after either a response, or after 1 second. Status and reason are not currently implemented. Will ultimately result in __WebSocket.on_close__ being fired.
-
 ```python
 client.close(1002, "Pong not recieved")
 ```
 
-
 ## TODO
-1. ~Implement continous frames~
-2. Write tests
-3. ~Extensions (compression etc.)~
-4. ~Framework interface~
-5. ~Ping, Pong and Closing~ (Extend ping and pong to support data)
-6. Error handling
-7. Clean up classes
-8. Implement close status and reason
-9. Implement all compression configurations
-10. Add more configurability/remove hardcoded constants
-11. Implement connection limit
+1. Write more tests
+2. Add support for payload in ping and pong frames
+3. Error handling
+4. Clean up classes
+5. Implement close status and reason
+6. Implement all compression configurations
+7. Add more configurability/remove hardcoded constants
+8. Implement connection limit
 
 ## External sources
 * https://tools.ietf.org/html/rfc6455
@@ -154,3 +131,9 @@ client.close(1002, "Pong not recieved")
 * https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
 * https://github.com/tornadoweb/tornado
 * https://docs.python.org/3/library/asyncio.html
+
+## License
+[MIT License](LICENSE)
+
+## Authors
+[Even Dalen](https://github.com/evedal), [Audun Wigum Arbo](https://github.com/AudunWA) and [Ole Kristian Aune](https://github.com/okaune)
