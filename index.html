@@ -10,7 +10,7 @@ class Board {
     this.context=context;
     this.mouse_down=0;
 
-    this.ws = new WebSocket("ws://localhost:8080");
+    this.ws = new WebSocket("ws://10.20.226.102:8080");
 
     this.ws.onerror = (error) => {
       $("#connection_label").html("Not connected");
